@@ -162,21 +162,19 @@
     });
   }
 
+  // 개선된 match 함수 — UI 실시간 갱신 포함
   function match(key, size) {
     db.ref(`parties/${key}`).once('value', (snapshot) => {
-      let currentApplicants = snapshot.val() || {};
+      const currentApplicants = snapshot.val() || {};
       let members = Object.values(currentApplicants);
-  
-      // 1. 기존 매칭 정보 (전부 flat으로 가져오기)
       const previousMatched = (matchedParties[key] || []).flat();
       const matched = [];
   
-      // 2. 매칭 알고리즘 실행
+      // 매칭 알고리즘
       while (members.length >= size) {
         const party = [];
         const tanks = members.filter(m => m.role === '탱커');
         const heals = members.filter(m => m.role === '힐러');
-        const dps = members.filter(m => m.role === '딜러');
         if (tanks.length > 0) party.push(tanks[0]);
         if (heals.length > 0) party.push(heals[0]);
         const remaining = members.filter(m => !party.includes(m)).sort(() => Math.random() - 0.5);
@@ -187,23 +185,30 @@
   
       const newlyMatched = matched.flat();
       const newMatchedIds = new Set(newlyMatched.map(m => m.id));
-      const prevMatchedIds = new Set(previousMatched.map(m => m.id));
   
-      // ✅ 1. 새 매칭 인원 신청 목록에서 삭제
+      // 신규 매칭은 신청 목록에서 제거
       newlyMatched.forEach(m => {
         db.ref(`parties/${key}/${m.id}`).remove();
       });
   
-      // ✅ 2. 기존 파티 인원 중 새 매칭에 없는 사람은 신청 목록에 다시 등록
+      // 교체된 이전 매칭은 신청 목록에 복귀
       previousMatched.forEach(prev => {
         if (!newMatchedIds.has(prev.id)) {
           db.ref(`parties/${key}/${prev.id}`).set(prev);
         }
       });
   
-      // ✅ 3. matchedParties 업데이트
+      // DB 및 UI에 즉시 반영
       matchedParties[key] = matched;
-      db.ref(`matchedParties/${key}`).set(matched);
+      db.ref(`matchedParties/${key}`).set(matched).then(() => {
+        renderMatched(key);  // 바로 파티 표시 갱신
+      });
+  
+      db.ref(`parties/${key}`).once('value', (snap) => {
+        const data = snap.val();
+        const list = data ? Object.entries(data).map(([id, v]) => ({ ...v, id })) : [];
+        renderSection(key, list);  // 신청자 목록도 즉시 갱신
+      });
     });
   }
 
