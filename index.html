@@ -184,23 +184,42 @@ function match(key, size) {
     let members = Object.values(all);
     const isRaid = size === 8;
     const matched = [];
+
     while (members.length >= size) {
       const party = [];
+      const existingNames = new Set(); // ✅ 같은 닉네임 필터용
+
       const tanks = members.filter(m => m.role === '탱커');
       const heals = members.filter(m => m.role === '힐러');
       const dps = members.filter(m => m.role === '딜러');
-      party.push(...tanks.slice(0, isRaid ? 2 : 1));
-      party.push(...heals.slice(0, isRaid ? 2 : 1));
+
+      const selectedTanks = tanks.filter(p => !existingNames.has(p.name)).slice(0, isRaid ? 2 : 1);
+      selectedTanks.forEach(p => existingNames.add(p.name));
+      party.push(...selectedTanks);
+
+      const selectedHeals = heals.filter(p => !existingNames.has(p.name)).slice(0, isRaid ? 2 : 1);
+      selectedHeals.forEach(p => existingNames.add(p.name));
+      party.push(...selectedHeals);
+
       const ids = new Set(party.map(p => p.id));
       const rest = members.filter(m => !ids.has(m.id));
       const restDps = rest.filter(m => m.role === '딜러');
       const extra = restDps.concat(rest.filter(m => m.role !== '딜러')).sort(() => Math.random() - 0.5);
-      party.push(...extra.slice(0, size - party.length));
+
+      const filteredExtra = extra.filter(p => !existingNames.has(p.name));
+      filteredExtra.slice(0, size - party.length).forEach(p => {
+        party.push(p);
+        existingNames.add(p.name);
+      });
+
       if (party.length === size) {
         matched.push(party);
         members = members.filter(m => !party.some(p => p.id === m.id));
-      } else break;
+      } else {
+        break;
+      }
     }
+
     const prev = (matchedParties[key] || []).flat();
     const newIds = new Set(matched.flat().map(m => m.id));
     prev.forEach(p => { if (!newIds.has(p.id)) db.ref(`parties/${key}/${p.id}`).set(p); });
@@ -213,6 +232,7 @@ function match(key, size) {
     });
   });
 }
+
 
 for (const dungeon in dungeonConfigs) {
   dungeonConfigs[dungeon].difficulties.forEach(diff => {
