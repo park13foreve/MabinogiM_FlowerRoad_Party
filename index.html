@@ -170,6 +170,8 @@ function match(key, size) {
     const previousMatched = (matchedParties[key] || []).flat();
     const matched = [];
 
+    const isRaid = key.startsWith("레이드");
+
     while (members.length >= size) {
       const party = [];
 
@@ -177,14 +179,18 @@ function match(key, size) {
       const heals = members.filter(m => m.role === '힐러');
       const dps = members.filter(m => m.role === '딜러');
 
-      if (heals.length > 0) party.push(heals[0]);
-      if (tanks.length > 0) party.push(tanks[0]);
+      // 레이드는 힐러2, 탱커2 우선, 그 외는 힐러1, 탱커1 우선
+      const healCount = isRaid ? 2 : 1;
+      const tankCount = isRaid ? 2 : 1;
+
+      party.push(...heals.slice(0, healCount));
+      party.push(...tanks.slice(0, tankCount));
 
       const selectedIds = new Set(party.map(p => p.id));
+      const remainingSlots = size - party.length;
 
-      const dpsNeeded = size - party.length;
       const availableDps = dps.filter(m => !selectedIds.has(m.id)).sort(() => Math.random() - 0.5);
-      const selectedDps = availableDps.slice(0, dpsNeeded);
+      const selectedDps = availableDps.slice(0, remainingSlots);
       party.push(...selectedDps);
 
       const stillNeeded = size - party.length;
@@ -225,6 +231,7 @@ function match(key, size) {
     });
   });
 }
+
 
   function renderMatched(key) {
     const resultBox = document.getElementById(`${key}-matched`);
