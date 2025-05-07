@@ -162,55 +162,60 @@
     });
   }
 
-  // 개선된 match 함수 — UI 실시간 갱신 포함
-  function match(key, size) {
-    db.ref(`parties/${key}`).once('value', (snapshot) => {
-      const currentApplicants = snapshot.val() || {};
-      let members = Object.values(currentApplicants);
-      const previousMatched = (matchedParties[key] || []).flat();
-      const matched = [];
-  
-      // 매칭 알고리즘
-      while (members.length >= size) {
-        const party = [];
-        const tanks = members.filter(m => m.role === '탱커');
-        const heals = members.filter(m => m.role === '힐러');
-        if (tanks.length > 0) party.push(tanks[0]);
-        if (heals.length > 0) party.push(heals[0]);
-        const remaining = members.filter(m => !party.includes(m)).sort(() => Math.random() - 0.5);
-        party.push(...remaining.slice(0, size - party.length));
-        members = members.filter(m => !party.includes(m));
-        matched.push(party);
-      }
-  
-      const newlyMatched = matched.flat();
-      const newMatchedIds = new Set(newlyMatched.map(m => m.id));
-  
-      // 신규 매칭은 신청 목록에서 제거
-      newlyMatched.forEach(m => {
-        db.ref(`parties/${key}/${m.id}`).remove();
-      });
-  
-      // 교체된 이전 매칭은 신청 목록에 복귀
-      previousMatched.forEach(prev => {
-        if (!newMatchedIds.has(prev.id)) {
-          db.ref(`parties/${key}/${prev.id}`).set(prev);
-        }
-      });
-  
-      // DB 및 UI에 즉시 반영
-      matchedParties[key] = matched;
-      db.ref(`matchedParties/${key}`).set(matched).then(() => {
-        renderMatched(key);  // 바로 파티 표시 갱신
-      });
-  
-      db.ref(`parties/${key}`).once('value', (snap) => {
-        const data = snap.val();
-        const list = data ? Object.entries(data).map(([id, v]) => ({ ...v, id })) : [];
-        renderSection(key, list);  // 신청자 목록도 즉시 갱신
-      });
+
+function match(key, size) {
+  db.ref(`parties/${key}`).once('value', (snapshot) => {
+    const currentApplicants = snapshot.val() || {};
+    let members = Object.values(currentApplicants);
+    const previousMatched = (matchedParties[key] || []).flat();
+    const matched = [];
+
+    while (members.length >= size) {
+      const party = [];
+
+      const tanks = members.filter(m => m.role === '탱커');
+      const heals = members.filter(m => m.role === '힐러');
+      const dps = members.filter(m => m.role === '딜러');
+
+      if (heals.length > 0) party.push(heals[0]);
+      if (tanks.length > 0) party.push(tanks[0]);
+
+      // Remove selected from pool
+      const selectedIds = new Set(party.map(p => p.id));
+      const rest = members.filter(m => !selectedIds.has(m.id) && m.role === '딜러')
+                          .sort(() => Math.random() - 0.5);
+
+      party.push(...rest.slice(0, size - party.length));
+      members = members.filter(m => !party.includes(m));
+      matched.push(party);
+    }
+
+    const newlyMatched = matched.flat();
+    const newMatchedIds = new Set(newlyMatched.map(m => m.id));
+
+    newlyMatched.forEach(m => {
+      db.ref(`parties/${key}/${m.id}`).remove();
     });
-  }
+
+    previousMatched.forEach(prev => {
+      if (!newMatchedIds.has(prev.id)) {
+        db.ref(`parties/${key}/${prev.id}`).set(prev);
+      }
+    });
+
+    matchedParties[key] = matched;
+    db.ref(`matchedParties/${key}`).set(matched).then(() => {
+      renderMatched(key);
+    });
+
+    db.ref(`parties/${key}`).once('value', (snap) => {
+      const data = snap.val();
+      const list = data ? Object.entries(data).map(([id, v]) => ({ ...v, id })) : [];
+      renderSection(key, list);
+    });
+  });
+}
+
 
 
   function renderMatched(key) {
