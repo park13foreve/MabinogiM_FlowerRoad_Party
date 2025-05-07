@@ -133,25 +133,26 @@
 
   function match(key, size) {
     db.ref(`parties/${key}`).once('value', (snapshot) => {
-      const members = Object.values(snapshot.val() || {});
-      const shuffled = [...members].sort(() => Math.random() - 0.5);
-
+      let members = Object.values(snapshot.val() || {});
       const matched = [];
-      while (shuffled.length >= size) {
+
+      while (members.length >= size) {
         let party = [];
+        const tanks = members.filter(m => m.role === '탱커');
+        const heals = members.filter(m => m.role === '힐러');
+        const dps = members.filter(m => m.role === '딜러');
 
-        const tanks = shuffled.filter(m => m.role === '탱커');
-        const heals = shuffled.filter(m => m.role === '힐러');
-        const dps = shuffled.filter(m => m.role === '딜러');
+        const selected = [];
+        if (tanks.length > 0) selected.push(tanks[0]);
+        if (heals.length > 0) selected.push(heals[0]);
 
-        party.push(...tanks.splice(0, 1));
-        party.push(...heals.splice(0, 1));
-        party.push(...dps.splice(0, size - party.length));
+        const restNeeded = size - selected.length;
+        const remaining = members.filter(m => !selected.includes(m));
+        const shuffled = remaining.sort(() => Math.random() - 0.5);
+        selected.push(...shuffled.slice(0, restNeeded));
 
-        while (party.length < size && shuffled.length > 0) {
-          party.push(shuffled.pop());
-        }
-
+        party = selected;
+        members = members.filter(m => !party.includes(m));
         matched.push(party);
       }
 
