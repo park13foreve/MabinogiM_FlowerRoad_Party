@@ -175,6 +175,7 @@ function match(key, size) {
     while (members.length >= size) {
       const party = [];
 
+      // ✅ 필수: 현재 members 기준으로 역할 분류
       const tanks = members.filter(m => m.role === '탱커');
       const heals = members.filter(m => m.role === '힐러');
       const dps = members.filter(m => m.role === '딜러');
@@ -189,15 +190,14 @@ function match(key, size) {
       const remainingSlots = size - party.length;
 
       const availableDps = dps.filter(m => !selectedIds.has(m.id)).sort(() => Math.random() - 0.5);
-      const selectedDps = availableDps.slice(0, remainingSlots);
-      party.push(...selectedDps);
+      party.push(...availableDps.slice(0, remainingSlots));
 
       const stillNeeded = size - party.length;
       if (stillNeeded > 0) {
-        const availableHeals = heals.filter(m => !selectedIds.has(m.id));
-        const availableTanks = tanks.filter(m => !selectedIds.has(m.id));
-        const backup = [...availableHeals, ...availableTanks].sort(() => Math.random() - 0.5);
-        party.push(...backup.slice(0, stillNeeded));
+        const moreHeals = heals.filter(m => !selectedIds.has(m.id));
+        const moreTanks = tanks.filter(m => !selectedIds.has(m.id));
+        const fallback = [...moreHeals, ...moreTanks].sort(() => Math.random() - 0.5);
+        party.push(...fallback.slice(0, stillNeeded));
       }
 
       if (party.length === size) {
@@ -221,7 +221,7 @@ function match(key, size) {
       }
     });
 
-    matchedParties[key] = matched; // properly store all matched parties
+    matchedParties[key] = matched;
     db.ref(`matchedParties/${key}`).set(matched).then(() => {
       renderMatched(key);
     });
