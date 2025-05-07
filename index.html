@@ -165,7 +165,7 @@ function renderMatched(key) {
   resultBox.innerHTML = matched.length === 0 ? "<p>매칭된 파티 없음</p>" : matched.map((party, i) => `
     <div class="party-block"><strong>파티 ${i + 1}</strong>: 
     ${party.map(p => `<span class="role-${p.role === '딜러' ? 'dps' : p.role === '힐러' ? 'heal' : 'tank'}">${p.name} (${p.role})</span>`).join(', ')}
-    <button class="inline-btn" onclick="deleteParty('${key}', ${i})">삭제</button></div>`).join('');
+    <button class="inline-btn" onclick="deleteParty('${key}', ${i})">❌</button></div>`).join('');
 }
 
 function match(key, size) {
