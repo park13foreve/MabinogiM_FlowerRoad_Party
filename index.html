@@ -53,7 +53,84 @@
     <option value="레이드">레이드</option>
   </select>
   <label>난이도:</label>
-  <select id="d칭</button>
+  <select id="difficulty"></select>
+  <label>닉네임:</label>
+  <input type="text" id="name" required>
+  <label>직업:</label>
+  <input type="text" id="job" required>
+  <label>역할:</label>
+  <select id="role">
+    <option value="딜러">딜러</option>
+    <option value="힐러">힐러</option>
+    <option value="탱커">탱커</option>
+  </select>
+  <button type="submit">신청</button>
+</form>
+<div id="dungeonSections"></div>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyColXLlJbXM6x97A4j1ME8QWNKTheAccFM",
+  authDomain: "mabinogim-flowerroad-party.firebaseapp.com",
+  databaseURL: "https://mabinogim-flowerroad-party-default-rtdb.firebaseio.com",
+  projectId: "mabinogim-flowerroad-party",
+  storageBucket: "mabinogim-flowerroad-party.appspot.com",
+  messagingSenderId: "1051963693734",
+  appId: "1:1051963693734:web:c264607ec4ecf562147267"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+const dungeonConfigs = {
+  '어비스': { difficulties: ['입문', '어려움', '매우어려움'], partySize: 4 },
+  '레이드': { difficulties: ['입문'], partySize: 8 }
+};
+
+const matchedParties = {};
+const sectionsContainer = document.getElementById('dungeonSections');
+const form = document.getElementById('partyForm');
+const dungeonSelect = document.getElementById('dungeon');
+const difficultySelect = document.getElementById('difficulty');
+
+dungeonSelect.addEventListener('change', updateDifficultyOptions);
+function updateDifficultyOptions() {
+  const selected = dungeonSelect.value;
+  const config = dungeonConfigs[selected];
+  difficultySelect.innerHTML = '';
+  config.difficulties.forEach(diff => {
+    const option = document.createElement('option');
+    option.value = diff;
+    option.textContent = diff;
+    difficultySelect.appendChild(option);
+  });
+}
+updateDifficultyOptions();
+
+form.addEventListener('submit', e => {
+  e.preventDefault();
+  const key = `${dungeonSelect.value}_${difficultySelect.value}`;
+  const ref = db.ref(`parties/${key}`);
+  const newRef = ref.push();
+  newRef.set({
+    name: document.getElementById('name').value,
+    job: document.getElementById('job').value,
+    role: document.getElementById('role').value,
+    id: newRef.key
+  });
+  form.reset();
+  updateDifficultyOptions();
+});
+
+function renderSection(key, fullList) {
+  let section = document.getElementById(`section-${key}`);
+  if (!section) {
+    section = document.createElement('div');
+    section.id = `section-${key}`;
+    section.className = 'dungeon-section';
+    section.innerHTML = `
+      <h2>${key.replace('_', ' - ')} (<span id="${key}-count">0</span>명 신청)</h2>
+      <ul id="${key}-list"></ul>
+      <div class="match-buttons">
+        <button onclick="match('${key}', ${dungeonConfigs[key.split('_')[0]].partySize})">파티 자동 매칭</button>
       </div>
       <div id="${key}-matched"></div>`;
     sectionsContainer.appendChild(section);
