@@ -187,34 +187,33 @@ function match(key, size) {
 
     while (members.length >= size) {
       const party = [];
-      const existingNames = new Set(); // ✅ 같은 닉네임 필터용
+      const usedNames = new Set();
 
-      const tanks = members.filter(m => m.role === '탱커');
-      const heals = members.filter(m => m.role === '힐러');
-      const dps = members.filter(m => m.role === '딜러');
+      const tanks = members.filter(m => m.role === '탱커' && !usedNames.has(m.name));
+      const heals = members.filter(m => m.role === '힐러' && !usedNames.has(m.name));
+      const dps = members.filter(m => m.role === '딜러' && !usedNames.has(m.name));
 
-      const selectedTanks = tanks.filter(p => !existingNames.has(p.name)).slice(0, isRaid ? 2 : 1);
-      selectedTanks.forEach(p => existingNames.add(p.name));
-      party.push(...selectedTanks);
+      const requiredTanks = isRaid ? 2 : 1;
+      const requiredHeals = isRaid ? 2 : 1;
 
-      const selectedHeals = heals.filter(p => !existingNames.has(p.name)).slice(0, isRaid ? 2 : 1);
-      selectedHeals.forEach(p => existingNames.add(p.name));
-      party.push(...selectedHeals);
+      const selectedTanks = tanks.slice(0, requiredTanks);
+      const selectedHeals = heals.slice(0, requiredHeals);
 
-      const ids = new Set(party.map(p => p.id));
-      const rest = members.filter(m => !ids.has(m.id));
-      const restDps = rest.filter(m => m.role === '딜러');
-      const extra = restDps.concat(rest.filter(m => m.role !== '딜러')).sort(() => Math.random() - 0.5);
+      selectedTanks.forEach(p => usedNames.add(p.name));
+      selectedHeals.forEach(p => usedNames.add(p.name));
 
-      const filteredExtra = extra.filter(p => !existingNames.has(p.name));
-      filteredExtra.slice(0, size - party.length).forEach(p => {
-        party.push(p);
-        existingNames.add(p.name);
-      });
+      party.push(...selectedTanks, ...selectedHeals);
+
+      const remainingSlots = size - party.length;
+      const remaining = members.filter(m => !party.includes(m) && !usedNames.has(m.name));
+      const extra = remaining.sort(() => Math.random() - 0.5).slice(0, remainingSlots);
+
+      extra.forEach(p => usedNames.add(p.name));
+      party.push(...extra);
 
       if (party.length === size) {
         matched.push(party);
-        members = members.filter(m => !party.some(p => p.id === m.id));
+        members = members.filter(m => !party.includes(m));
       } else {
         break;
       }
