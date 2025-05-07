@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <title>던전별 파티 매칭</title>
-  <script src="="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
@@ -112,15 +112,15 @@
   });
 
   function removeApplicant(key, id) {
-    db.ref(`parties/${key}/${id}`).remove();
-  }
-
-  function rematch(key) {
-    const matched = matchedParties[key]?.flat() || [];
-    matched.forEach(p => {
-      db.ref(`parties/${key}/${p.id}`).set(p);
+    db.ref(`matchedParties/${key}`).once('value', (snapshot) => {
+      const matched = snapshot.val()?.flat() || [];
+      const isMatched = matched.some(m => m.id === id);
+      if (isMatched) {
+        alert("⚠️ 이미 매칭된 인원은 신청 취소할 수 없습니다.");
+      } else {
+        db.ref(`parties/${key}/${id}`).remove();
+      }
     });
-    db.ref(`matchedParties/${key}`).set([]);
   }
 
   function deleteParty(key, index) {
@@ -142,7 +142,6 @@
         <ul id="${key}-list"></ul>
         <div class="match-buttons">
           <button onclick="match('${key}', ${dungeonConfigs[key.split('_')[0]].partySize})">파티 자동 매칭</button>
-          <button onclick="rematch('${key}')">재구성</button>
         </div>
         <div id="${key}-matched"></div>
       `;
