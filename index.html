@@ -192,8 +192,7 @@ function match(key, size) {
 
       const remainingSlots = size - party.length;
       const availableDps = dps.filter(m => !selectedIds.has(m.id)).sort(() => Math.random() - 0.5);
-      const selectedDps = availableDps.slice(0, remainingSlots);
-      party.push(...selectedDps);
+      party.push(...availableDps.slice(0, remainingSlots));
 
       const stillNeeded = size - party.length;
       if (stillNeeded > 0) {
@@ -225,9 +224,9 @@ function match(key, size) {
     });
 
     matchedParties[key] = matched;
-    db.ref(`matchedParties/${key}`).set(matched).then(() => {
-      renderMatched(key);
-    });
+
+    // ✅ Let Firebase listener trigger the renderMatched call
+    db.ref(`matchedParties/${key}`).set(matched);
 
     db.ref(`parties/${key}`).once('value', (snap) => {
       const data = snap.val();
