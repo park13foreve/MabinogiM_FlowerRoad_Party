@@ -200,8 +200,12 @@ function match(key, size) {
         party.push(...backup.slice(0, stillNeeded));
       }
 
-      members = members.filter(m => !party.includes(m));
-      matched.push(party);
+      if (party.length === size) {
+        members = members.filter(m => !party.includes(m));
+        matched.push(party);
+      } else {
+        break;
+      }
     }
 
     const newlyMatched = matched.flat();
@@ -217,7 +221,7 @@ function match(key, size) {
       }
     });
 
-    matchedParties[key] = matched;
+    matchedParties[key] = matched; // properly store all matched parties
     db.ref(`matchedParties/${key}`).set(matched).then(() => {
       renderMatched(key);
     });
@@ -229,6 +233,7 @@ function match(key, size) {
     });
   });
 }
+
 
   function renderMatched(key) {
     const resultBox = document.getElementById(`${key}-matched`);
