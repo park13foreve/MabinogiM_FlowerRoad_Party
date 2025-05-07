@@ -5,35 +5,40 @@
   <title>던전별 파티 매칭</title>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: sans-serif; padding: 20px; }
-    select, input, button { margin: 5px; }
+    body { font-family: sans-serif; padding: 20px; margin: 0; }
+    form, select, input, button { width: 100%; max-width: 500px; margin: 5px auto; display: block; }
     .dungeon-section { margin-top: 30px; border-top: 1px solid #ccc; padding-top: 20px; }
     .role-dps { background-color: #FFD1B3; padding: 2px 5px; border-radius: 4px; }
     .role-heal { background-color: #C2F0C2; padding: 2px 5px; border-radius: 4px; }
     .role-tank { background-color: #C2E0FF; padding: 2px 5px; border-radius: 4px; }
     .party-block { margin-bottom: 10px; }
+    ul { padding-left: 20px; }
+    li { margin-bottom: 5px; }
   </style>
 </head>
 <body>
 
-<h1>던전별 파티 신청</h1>
+<h1 style="text-align:center">던전별 파티 신청</h1>
 
 <form id="partyForm">
-  던전:
+  <label>던전:</label>
   <select id="dungeon">
     <option value="어비스">어비스</option>
     <option value="레이드">레이드</option>
   </select>
-  난이도:
+  <label>난이도:</label>
   <select id="difficulty">
     <option value="입문">입문</option>
     <option value="어려움">어려움</option>
     <option value="매우어려움">매우어려움</option>
   </select>
-  닉네임: <input type="text" id="name" required>
-  직업: <input type="text" id="job" required>
-  역할:
+  <label>닉네임:</label>
+  <input type="text" id="name" required>
+  <label>직업:</label>
+  <input type="text" id="job" required>
+  <label>역할:</label>
   <select id="role">
     <option value="딜러">딜러</option>
     <option value="힐러">힐러</option>
@@ -70,7 +75,7 @@
     }
   };
 
-  const matchedParties = {}; // { dungeon_difficulty: [[party1], [party2], ...] }
+  const matchedParties = {}; 
   const sectionsContainer = document.getElementById('dungeonSections');
 
   const form = document.getElementById('partyForm');
@@ -101,19 +106,24 @@
 
     const key = `${dungeon}_${difficulty}`;
     const ref = db.ref(`parties/${key}`);
-    ref.push({ name, job, role });
+    const newRef = ref.push();
+    newRef.set({ name, job, role, id: newRef.key });
     form.reset();
     updateDifficultyOptions();
   });
 
-  function renderSection(key, partyList) {
+  function removeApplicant(key, id) {
+    db.ref(`parties/${key}/${id}`).remove();
+  }
+
+  function renderSection(key, partyListWithIds) {
     let section = document.getElementById(`section-${key}`);
     if (!section) {
       section = document.createElement('div');
       section.id = `section-${key}`;
       section.className = 'dungeon-section';
       section.innerHTML = `
-        <h2>${key.replace('_', ' - ')}</h2>
+        <h2>${key.replace('_', ' - ')} (<span id="${key}-count">0</span>명 신청)</h2>
         <ul id="${key}-list"></ul>
         <button onclick="match('${key}', ${dungeonConfigs[key.split('_')[0]].partySize})">파티 자동 매칭</button>
         <button onclick="rematch('${key}')">재구성</button>
@@ -124,9 +134,12 @@
 
     const list = document.getElementById(`${key}-list`);
     list.innerHTML = '';
-    partyList.forEach((a, idx) => {
+    document.getElementById(`${key}-count`).innerText = partyListWithIds.length;
+
+    partyListWithIds.forEach((a, idx) => {
       const li = document.createElement('li');
-      li.innerHTML = `${idx + 1}. ${a.name} (${a.job}) <span class="role-${a.role === '딜러' ? 'dps' : a.role === '힐러' ? 'heal' : 'tank'}">${a.role}</span>`;
+      li.innerHTML = `${idx + 1}. ${a.name} (${a.job}) <span class="role-${a.role === '딜러' ? 'dps' : a.role === '힐러' ? 'heal' : 'tank'}">${a.role}</span>` +
+        ` <button onclick="removeApplicant('${key}', '${a.id}')">❌</button>`;
       list.appendChild(li);
     });
   }
@@ -186,14 +199,13 @@
     resultBox.innerHTML = html;
   }
 
-  // 실시간 데이터 반영
   for (const dungeon in dungeonConfigs) {
     dungeonConfigs[dungeon].difficulties.forEach(diff => {
       const key = `${dungeon}_${diff}`;
 
       db.ref(`parties/${key}`).on('value', (snapshot) => {
         const data = snapshot.val();
-        const list = data ? Object.values(data) : [];
+        const list = data ? Object.entries(data).map(([id, v]) => ({ ...v, id })) : [];
         renderSection(key, list);
       });
 
