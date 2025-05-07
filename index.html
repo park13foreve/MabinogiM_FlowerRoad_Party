@@ -1,8 +1,9 @@
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>마비노기 꽃길 길드파티</title>
+  <title>마비노기 꽃길 길드팟</title>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -67,17 +68,17 @@
 </form>
 <div id="dungeonSections"></div>
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyColXLlJbXM6x97A4j1ME8QWNKTheAccFM",
-  authDomain: "mabinogim-flowerroad-party.firebaseapp.com",
-  databaseURL: "https://mabinogim-flowerroad-party-default-rtdb.firebaseio.com",
-  projectId: "mabinogim-flowerroad-party",
-  storageBucket: "mabinogim-flowerroad-party.appspot.com",
-  messagingSenderId: "1051963693734",
-  appId: "1:1051963693734:web:c264607ec4ecf562147267"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+  const firebaseConfig = {
+    apiKey: "AIzaSyColXLlJbXM6x97A4j1ME8QWNKTheAccFM",
+    authDomain: "mabinogim-flowerroad-party.firebaseapp.com",
+    databaseURL: "https://mabinogim-flowerroad-party-default-rtdb.firebaseio.com",
+    projectId: "mabinogim-flowerroad-party",
+    storageBucket: "mabinogim-flowerroad-party.appspot.com",
+    messagingSenderId: "1051963693734",
+    appId: "1:1051963693734:web:c264607ec4ecf562147267"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
 
 const dungeonConfigs = {
   '어비스': { difficulties: ['입문', '어려움', '매우어려움'], partySize: 4 },
