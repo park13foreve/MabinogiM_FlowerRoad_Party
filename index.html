@@ -177,21 +177,18 @@ function match(key, size) {
       const heals = members.filter(m => m.role === '힐러');
       const dps = members.filter(m => m.role === '딜러');
 
-      // 필수 구성: 힐러 1, 탱커 1
       if (heals.length > 0) party.push(heals[0]);
       if (tanks.length > 0) party.push(tanks[0]);
 
       const selectedIds = new Set(party.map(p => p.id));
 
-      // 1. 나머지 자리에 딜러 우선
-      const availableDps = dps.filter(m => !selectedIds.has(m.id)).sort(() => Math.random() - 0.5);
       const dpsNeeded = size - party.length;
+      const availableDps = dps.filter(m => !selectedIds.has(m.id)).sort(() => Math.random() - 0.5);
       const selectedDps = availableDps.slice(0, dpsNeeded);
       party.push(...selectedDps);
 
       const stillNeeded = size - party.length;
 
-      // 2. 딜러가 부족하면 힐러/탱커로 추가
       if (stillNeeded > 0) {
         const availableHeals = heals.filter(m => !selectedIds.has(m.id));
         const availableTanks = tanks.filter(m => !selectedIds.has(m.id));
@@ -228,7 +225,6 @@ function match(key, size) {
     });
   });
 }
-
 
   function renderMatched(key) {
     const resultBox = document.getElementById(`${key}-matched`);
