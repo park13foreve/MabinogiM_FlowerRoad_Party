@@ -64,6 +64,8 @@
     <option value="힐러">힐러</option>
     <option value="탱커">탱커</option>
   </select>
+  <label>특이사항 (선택):</label>
+  <input type="text" id="note" placeholder="없으면 비워두세요">
   <button type="submit">신청</button>
 </form>
 <div id="dungeonSections"></div>
@@ -81,8 +83,8 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 const dungeonConfigs = {
-  '어비스': { difficulties: ['입문', '어려움', '매우어려움'], partySize: 4 },
-  '레이드': { difficulties: ['입문'], partySize: 8 }
+  '어비스': { difficulties: ['입문', '어려움', '매우어려움'], partySize: 4, default: '매우어려움' },
+  '레이드': { difficulties: ['입문'], partySize: 8, default: '입문' }
 };
 
 const matchedParties = {};
@@ -100,6 +102,7 @@ function updateDifficultyOptions() {
     const option = document.createElement('option');
     option.value = diff;
     option.textContent = diff;
+    if (diff === config.default) option.selected = true;
     difficultySelect.appendChild(option);
   });
 }
@@ -114,6 +117,7 @@ form.addEventListener('submit', e => {
     name: document.getElementById('name').value,
     job: document.getElementById('job').value,
     role: document.getElementById('role').value,
+    note: document.getElementById('note').value.trim(),
     id: newRef.key
   });
   form.reset();
@@ -130,7 +134,7 @@ function renderSection(key, fullList) {
       <h2>${key.replace('_', ' - ')} (<span id="${key}-count">0</span>명 신청)</h2>
       <ul id="${key}-list"></ul>
       <div class="match-buttons">
-        <button onclick="match('${key}', ${dungeonConfigs[key.split('_')[0]].partySize})">파티 자동 매칭</button>
+        <button onclick="match('${key}', ${dungeonConfigs[key.split('_')[0]].partySize})">다시 매칭</button>
       </div>
       <div id="${key}-matched"></div>`;
     sectionsContainer.appendChild(section);
@@ -143,7 +147,7 @@ function renderSection(key, fullList) {
   list.innerHTML = '';
   remaining.forEach((a, idx) => {
     const li = document.createElement('li');
-    li.innerHTML = `${idx + 1}. <span class="role-${a.role === '딜러' ? 'dps' : a.role === '힐러' ? 'heal' : 'tank'}">${a.name} (${a.job}) ${a.role}</span>
+    li.innerHTML = `${idx + 1}. <span class="role-${a.role === '딜러' ? 'dps' : a.role === '힐러' ? 'heal' : 'tank'}">${a.name} (${a.job})</span>
       <button class="inline-btn" onclick="removeApplicant('${key}', '${a.id}')">❌</button>`;
     list.appendChild(li);
   });
@@ -164,58 +168,11 @@ function renderMatched(key) {
   const matched = matchedParties[key] || [];
   resultBox.innerHTML = matched.length === 0 ? "<p>매칭된 파티 없음</p>" : matched.map((party, i) => `
     <div class="party-block"><strong>파티 ${i + 1}</strong>: 
-    ${party.map(p => `<span class="role-${p.role === '딜러' ? 'dps' : p.role === '힐러' ? 'heal' : 'tank'}">${p.name} (${p.job})</span>`).join(', ')}
+    ${party.map(p => {
+      const noteText = p.note ? ` - ${p.note}` : '';
+      return `<span class="role-${p.role === '딜러' ? 'dps' : p.role === '힐러' ? 'heal' : 'tank'}">${p.name} (${p.job})${noteText}</span>`;
+    }).join(', ')}
     <button class="inline-btn" onclick="deleteParty('${key}', ${i})">❌</button></div>`).join('');
-}
-
-function match(key, size) {
-  db.ref(`parties/${key}`).once('value', snap => {
-    const all = snap.val() || {};
-    let members = Object.values(all);
-    const isRaid = size === 8;
-    const matched = [];
-    while (members.length >= size) {
-      const party = [];
-      const tanks = members.filter(m => m.role === '탱커');
-      const heals = members.filter(m => m.role === '힐러');
-      const dps = members.filter(m => m.role === '딜러');
-      party.push(...tanks.slice(0, isRaid ? 2 : 1));
-      party.push(...heals.slice(0, isRaid ? 2 : 1));
-      const ids = new Set(party.map(p => p.id));
-      const rest = members.filter(m => !ids.has(m.id));
-      const restDps = rest.filter(m => m.role === '딜러');
-      const extra = restDps.concat(rest.filter(m => m.role !== '딜러')).sort(() => Math.random() - 0.5);
-      party.push(...extra.slice(0, size - party.length));
-      if (party.length === size) {
-        matched.push(party);
-        members = members.filter(m => !party.some(p => p.id === m.id));
-      } else break;
-    }
-    const prev = (matchedParties[key] || []).flat();
-    const newIds = new Set(matched.flat().map(m => m.id));
-    prev.forEach(p => { if (!newIds.has(p.id)) db.ref(`parties/${key}/${p.id}`).set(p); });
-    matched.flat().forEach(p => db.ref(`parties/${key}/${p.id}`).remove());
-    matchedParties[key] = matched;
-    db.ref(`matchedParties/${key}`).set(matched).then(() => renderMatched(key));
-    db.ref(`parties/${key}`).once('value', s => {
-      const list = s.val() ? Object.entries(s.val()).map(([id, v]) => ({ ...v, id })) : [];
-      renderSection(key, list);
-    });
-  });
-}
-
-for (const dungeon in dungeonConfigs) {
-  dungeonConfigs[dungeon].difficulties.forEach(diff => {
-    const key = `${dungeon}_${diff}`;
-    db.ref(`parties/${key}`).on('value', snap => {
-      const list = snap.val() ? Object.entries(snap.val()).map(([id, v]) => ({ ...v, id })) : [];
-      renderSection(key, list);
-    });
-    db.ref(`matchedParties/${key}`).on('value', snap => {
-      matchedParties[key] = snap.val() || [];
-      renderMatched(key);
-    });
-  });
 }
 </script>
 </body>
