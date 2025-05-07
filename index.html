@@ -162,7 +162,6 @@
     });
   }
 
-
 function match(key, size) {
   db.ref(`parties/${key}`).once('value', (snapshot) => {
     const currentApplicants = snapshot.val() || {};
@@ -171,40 +170,33 @@ function match(key, size) {
     const matched = [];
 
     const isRaid = key.startsWith("레이드");
+    const healCount = isRaid ? 2 : 1;
+    const tankCount = isRaid ? 2 : 1;
 
-    while (members.length >= size) {
+    while (true) {
       const party = [];
 
       const tanks = members.filter(m => m.role === '탱커');
       const heals = members.filter(m => m.role === '힐러');
       const dps = members.filter(m => m.role === '딜러');
 
-      const healCount = isRaid ? 2 : 1;
-      const tankCount = isRaid ? 2 : 1;
+      if (tanks.length < tankCount || heals.length < healCount || dps.length < (size - tankCount - healCount)) {
+        break;
+      }
 
-      const selectedHeals = heals.slice(0, healCount);
-      const selectedTanks = tanks.slice(0, tankCount);
-
-      party.push(...selectedHeals);
-      party.push(...selectedTanks);
+      party.push(...heals.slice(0, healCount));
+      party.push(...tanks.slice(0, tankCount));
 
       const selectedIds = new Set(party.map(p => p.id));
-
       const remainingSlots = size - party.length;
+
       const availableDps = dps.filter(m => !selectedIds.has(m.id)).sort(() => Math.random() - 0.5);
       party.push(...availableDps.slice(0, remainingSlots));
 
-      const stillNeeded = size - party.length;
-      if (stillNeeded > 0) {
-        const moreHeals = heals.filter(m => !selectedIds.has(m.id));
-        const moreTanks = tanks.filter(m => !selectedIds.has(m.id));
-        const backup = [...moreHeals, ...moreTanks].sort(() => Math.random() - 0.5);
-        party.push(...backup.slice(0, stillNeeded));
-      }
-
       if (party.length === size) {
-        members = members.filter(m => !party.some(p => p.id === m.id));
         matched.push(party);
+        const usedIds = new Set(party.map(p => p.id));
+        members = members.filter(m => !usedIds.has(m.id));
       } else {
         break;
       }
@@ -224,15 +216,7 @@ function match(key, size) {
     });
 
     matchedParties[key] = matched;
-
-    // ✅ Let Firebase listener trigger the renderMatched call
     db.ref(`matchedParties/${key}`).set(matched);
-
-    db.ref(`parties/${key}`).once('value', (snap) => {
-      const data = snap.val();
-      const list = data ? Object.entries(data).map(([id, v]) => ({ ...v, id })) : [];
-      renderSection(key, list);
-    });
   });
 }
 
