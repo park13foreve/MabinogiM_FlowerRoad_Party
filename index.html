@@ -63,7 +63,7 @@
     authDomain: "mabinogim-flowerroad-party.firebaseapp.com",
     databaseURL: "https://mabinogim-flowerroad-party-default-rtdb.firebaseio.com",
     projectId: "mabinogim-flowerroad-party",
-    storageBucket: "mabinogim-flowerroad-party.firebasestorage.app",
+    storageBucket: "mabinogim-flowerroad-party.appspot.com",
     messagingSenderId: "1051963693734",
     appId: "1:1051963693734:web:c264607ec4ecf562147267",
     measurementId: "G-68YFF3DH5W"
@@ -165,19 +165,33 @@
   function match(key, size) {
     db.ref(`parties/${key}`).once('value', (snapshot) => {
       let members = Object.values(snapshot.val() || {});
+      const previousMatched = (matchedParties[key] || []).flat();
       const matched = [];
+
       while (members.length >= size) {
         const party = [];
         const tanks = members.filter(m => m.role === '탱커');
         const heals = members.filter(m => m.role === '힐러');
         const dps = members.filter(m => m.role === '딜러');
-        if (tanks.length) party.push(tanks[0]);
-        if (heals.length) party.push(heals[0]);
+        if (tanks.length > 0) party.push(tanks[0]);
+        if (heals.length > 0) party.push(heals[0]);
         const remaining = members.filter(m => !party.includes(m)).sort(() => Math.random() - 0.5);
         party.push(...remaining.slice(0, size - party.length));
         members = members.filter(m => !party.includes(m));
         matched.push(party);
       }
+
+      const newlyMatched = matched.flat();
+      const newMatchedIds = new Set(newlyMatched.map(m => m.id));
+      const prevMatchedIds = new Set(previousMatched.map(m => m.id));
+
+      newlyMatched.forEach(m => db.ref(`parties/${key}/${m.id}`).remove());
+      previousMatched.forEach(prev => {
+        if (!newMatchedIds.has(prev.id)) {
+          db.ref(`parties/${key}/${prev.id}`).set(prev);
+        }
+      });
+
       matchedParties[key] = matched;
       db.ref(`matchedParties/${key}`).set(matched);
     });
