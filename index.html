@@ -179,7 +179,6 @@ function match(key, size) {
       const heals = members.filter(m => m.role === '힐러');
       const dps = members.filter(m => m.role === '딜러');
 
-      // 레이드는 힐러2, 탱커2 우선, 그 외는 힐러1, 탱커1 우선
       const healCount = isRaid ? 2 : 1;
       const tankCount = isRaid ? 2 : 1;
 
@@ -194,7 +193,6 @@ function match(key, size) {
       party.push(...selectedDps);
 
       const stillNeeded = size - party.length;
-
       if (stillNeeded > 0) {
         const availableHeals = heals.filter(m => !selectedIds.has(m.id));
         const availableTanks = tanks.filter(m => !selectedIds.has(m.id));
@@ -231,7 +229,6 @@ function match(key, size) {
     });
   });
 }
-
 
   function renderMatched(key) {
     const resultBox = document.getElementById(`${key}-matched`);
