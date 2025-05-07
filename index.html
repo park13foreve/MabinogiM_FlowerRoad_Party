@@ -163,6 +163,7 @@
   }
 
 
+
 function match(key, size) {
   db.ref(`parties/${key}`).once('value', (snapshot) => {
     const currentApplicants = snapshot.val() || {};
@@ -180,12 +181,12 @@ function match(key, size) {
       if (heals.length > 0) party.push(heals[0]);
       if (tanks.length > 0) party.push(tanks[0]);
 
-      // Remove selected from pool
       const selectedIds = new Set(party.map(p => p.id));
-      const rest = members.filter(m => !selectedIds.has(m.id) && m.role === '딜러')
-                          .sort(() => Math.random() - 0.5);
 
-      party.push(...rest.slice(0, size - party.length));
+      // 반드시 딜러로만 남은 자리 채우기 (최대 2명)
+      const availableDps = dps.filter(m => !selectedIds.has(m.id)).sort(() => Math.random() - 0.5);
+      party.push(...availableDps.slice(0, size - party.length));
+
       members = members.filter(m => !party.includes(m));
       matched.push(party);
     }
