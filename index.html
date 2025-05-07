@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>던전별 파티 매칭</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    select, input, button { margin: 5px; }
+    .dungeon-section { margin-top: 30px; border-top: 1px solid #ccc; padding-top: 20px; }
+    .role-dps { background-color: #FFD1B3; padding: 2px 5px; border-radius: 4px; }
+    .role-heal { background-color: #C2F0C2; padding: 2px 5px; border-radius: 4px; }
+    .role-tank { background-color: #C2E0FF; padding: 2px 5px; border-radius: 4px; }
+    .party-block { margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+
+<h1>던전별 파티 신청</h1>
+
+<form id="partyForm">
+  던전:
+  <select id="dungeon">
+    <option value="어비스">어비스</option>
+    <option value="레이드">레이드</option>
+  </select>
+  난이도:
+  <select id="difficulty">
+    <option value="입문">입문</option>
+    <option value="어려움">어려움</option>
+    <option value="매우어려움">매우어려움</option>
+  </select>
+  닉네임: <input type="text" id="name" required>
+  직업: <input type="text" id="job" required>
+  역할:
+  <select id="role">
+    <option value="딜러">딜러</option>
+    <option value="힐러">힐러</option>
+    <option value="탱커">탱커</option>
+  </select>
+  <button type="submit">신청</button>
+</form>
+
+<div id="dungeonSections"></div>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyColXLlJbXM6x97A4j1ME8QWNKTheAccFM",
+    authDomain: "mabinogim-flowerroad-party.firebaseapp.com",
+    databaseURL: "https://mabinogim-flowerroad-party-default-rtdb.firebaseio.com",
+    projectId: "mabinogim-flowerroad-party",
+    storageBucket: "mabinogim-flowerroad-party.firebasestorage.app",
+    messagingSenderId: "1051963693734",
+    appId: "1:1051963693734:web:c264607ec4ecf562147267",
+    measurementId: "G-68YFF3DH5W"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  const dungeonConfigs = {
+    '어비스': {
+      difficulties: ['입문', '어려움', '매우어려움'],
+      partySize: 4
+    },
+    '레이드': {
+      difficulties: ['입문'],
+      partySize: 8
+    }
+  };
+
+  const matchedParties = {}; // { dungeon_difficulty: [[party1], [party2], ...] }
+  const sectionsContainer = document.getElementById('dungeonSections');
+
+  const form = document.getElementById('partyForm');
+  const dungeonSelect = document.getElementById('dungeon');
+  const difficultySelect = document.getElementById('difficulty');
+
+  dungeonSelect.addEventListener('change', updateDifficultyOptions);
+  function updateDifficultyOptions() {
+    const selected = dungeonSelect.value;
+    const config = dungeonConfigs[selected];
+    difficultySelect.innerHTML = '';
+    config.difficulties.forEach(diff => {
+      const option = document.createElement('option');
+      option.value = diff;
+      option.textContent = diff;
+      difficultySelect.appendChild(option);
+    });
+  }
+  updateDifficultyOptions();
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const dungeon = dungeonSelect.value;
+    const difficulty = difficultySelect.value;
+    const name = document.getElementById('name').value;
+    const job = document.getElementById('job').value;
+    const role = document.getElementById('role').value;
+
+    const key = `${dungeon}_${difficulty}`;
+    const ref = db.ref(`parties/${key}`);
+    ref.push({ name, job, role });
+    form.reset();
+    updateDifficultyOptions();
+  });
+
+  function renderSection(key, partyList) {
+    let section = document.getElementById(`section-${key}`);
+    if (!section) {
+      section = document.createElement('div');
+      section.id = `section-${key}`;
+      section.className = 'dungeon-section';
+      section.innerHTML = `
+        <h2>${key.replace('_', ' - ')}</h2>
+        <ul id="${key}-list"></ul>
+        <button onclick="match('${key}', ${dungeonConfigs[key.split('_')[0]].partySize})">파티 자동 매칭</button>
+        <button onclick="rematch('${key}')">재구성</button>
+        <div id="${key}-matched"></div>
+      `;
+      sectionsContainer.appendChild(section);
+    }
+
+    const list = document.getElementById(`${key}-list`);
+    list.innerHTML = '';
+    partyList.forEach((a, idx) => {
+      const li = document.createElement('li');
+      li.innerHTML = `${idx + 1}. ${a.name} (${a.job}) <span class="role-${a.role === '딜러' ? 'dps' : a.role === '힐러' ? 'heal' : 'tank'}">${a.role}</span>`;
+      list.appendChild(li);
+    });
+  }
+
+  function match(key, size) {
+    db.ref(`parties/${key}`).once('value', (snapshot) => {
+      const members = Object.values(snapshot.val() || {});
+      const shuffled = [...members].sort(() => Math.random() - 0.5);
+
+      const matched = [];
+      while (shuffled.length >= size) {
+        let party = [];
+
+        const tanks = shuffled.filter(m => m.role === '탱커');
+        const heals = shuffled.filter(m => m.role === '힐러');
+        const dps = shuffled.filter(m => m.role === '딜러');
+
+        party.push(...tanks.splice(0, 1));
+        party.push(...heals.splice(0, 1));
+        party.push(...dps.splice(0, size - party.length));
+
+        while (party.length < size && shuffled.length > 0) {
+          party.push(shuffled.pop());
+        }
+
+        matched.push(party);
+      }
+
+      matchedParties[key] = matched;
+      db.ref(`matchedParties/${key}`).set(matched);
+    });
+  }
+
+  function rematch(key) {
+    match(key, dungeonConfigs[key.split('_')[0]].partySize);
+  }
+
+  function deleteParty(key, index) {
+    matchedParties[key].splice(index, 1);
+    db.ref(`matchedParties/${key}`).set(matchedParties[key]);
+  }
+
+  function renderMatched(key) {
+    const resultBox = document.getElementById(`${key}-matched`);
+    const matched = matchedParties[key] || [];
+    if (matched.length === 0) {
+      resultBox.innerHTML = "<p>매칭 가능한 인원이 부족합니다.</p>";
+      return;
+    }
+    let html = '';
+    matched.forEach((party, i) => {
+      html += `<div class="party-block"><strong>파티 ${i + 1}</strong>: `;
+      html += party.map(p => `<span class="role-${p.role === '딜러' ? 'dps' : p.role === '힐러' ? 'heal' : 'tank'}">${p.name} (${p.role})</span>`).join(', ');
+      html += ` <button onclick="deleteParty('${key}', ${i})">삭제</button></div>`;
+    });
+    resultBox.innerHTML = html;
+  }
+
+  // 실시간 데이터 반영
+  for (const dungeon in dungeonConfigs) {
+    dungeonConfigs[dungeon].difficulties.forEach(diff => {
+      const key = `${dungeon}_${diff}`;
+
+      db.ref(`parties/${key}`).on('value', (snapshot) => {
+        const data = snapshot.val();
+        const list = data ? Object.values(data) : [];
+        renderSection(key, list);
+      });
+
+      db.ref(`matchedParties/${key}`).on('value', (snapshot) => {
+        matchedParties[key] = snapshot.val() || [];
+        renderMatched(key);
+      });
+    });
+  }
+</script>
+
+</body>
+</html>
