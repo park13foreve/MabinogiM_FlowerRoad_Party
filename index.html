@@ -175,7 +175,6 @@ function match(key, size) {
     while (members.length >= size) {
       const party = [];
 
-      // ✅ 필수: 현재 members 기준으로 역할 분류
       const tanks = members.filter(m => m.role === '탱커');
       const heals = members.filter(m => m.role === '힐러');
       const dps = members.filter(m => m.role === '딜러');
@@ -183,25 +182,29 @@ function match(key, size) {
       const healCount = isRaid ? 2 : 1;
       const tankCount = isRaid ? 2 : 1;
 
-      party.push(...heals.slice(0, healCount));
-      party.push(...tanks.slice(0, tankCount));
+      const selectedHeals = heals.slice(0, healCount);
+      const selectedTanks = tanks.slice(0, tankCount);
+
+      party.push(...selectedHeals);
+      party.push(...selectedTanks);
 
       const selectedIds = new Set(party.map(p => p.id));
-      const remainingSlots = size - party.length;
 
+      const remainingSlots = size - party.length;
       const availableDps = dps.filter(m => !selectedIds.has(m.id)).sort(() => Math.random() - 0.5);
-      party.push(...availableDps.slice(0, remainingSlots));
+      const selectedDps = availableDps.slice(0, remainingSlots);
+      party.push(...selectedDps);
 
       const stillNeeded = size - party.length;
       if (stillNeeded > 0) {
         const moreHeals = heals.filter(m => !selectedIds.has(m.id));
         const moreTanks = tanks.filter(m => !selectedIds.has(m.id));
-        const fallback = [...moreHeals, ...moreTanks].sort(() => Math.random() - 0.5);
-        party.push(...fallback.slice(0, stillNeeded));
+        const backup = [...moreHeals, ...moreTanks].sort(() => Math.random() - 0.5);
+        party.push(...backup.slice(0, stillNeeded));
       }
 
       if (party.length === size) {
-        members = members.filter(m => !party.includes(m));
+        members = members.filter(m => !party.some(p => p.id === m.id));
         matched.push(party);
       } else {
         break;
