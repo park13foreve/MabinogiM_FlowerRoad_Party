@@ -173,52 +173,69 @@ function match(key, size) {
     const healCount = isRaid ? 2 : 1;
     const tankCount = isRaid ? 2 : 1;
 
-    while (true) {
-      const party = [];
+    while (members.length >= size) {
+      let party = [];
 
       const tanks = members.filter(m => m.role === '탱커');
       const heals = members.filter(m => m.role === '힐러');
       const dps = members.filter(m => m.role === '딜러');
 
-      if (tanks.length < tankCount || heals.length < healCount || dps.length < (size - tankCount - healCount)) {
-        break;
-      }
+      if (tanks.length < tankCount || heals.length < healCount) break;
 
       party.push(...heals.slice(0, healCount));
       party.push(...tanks.slice(0, tankCount));
 
-      const selectedIds = new Set(party.map(p => p.id));
-      const remainingSlots = size - party.length;
+      const usedIds = new Set(party.map(p => p.id));
 
-      const availableDps = dps.filter(m => !selectedIds.has(m.id)).sort(() => Math.random() - 0.5);
+      // 나머지 자리는 딜러 우선
+      const remainingSlots = size - party.length;
+      const availableDps = dps.filter(d => !usedIds.has(d.id)).sort(() => Math.random() - 0.5);
       party.push(...availableDps.slice(0, remainingSlots));
+
+      // 그래도 부족하면 힐러, 탱커 중 중복 없는 사람 추가
+      const updatedUsed = new Set(party.map(p => p.id));
+      const stillNeeded = size - party.length;
+      const backup = members.filter(m => !updatedUsed.has(m.id)).sort(() => Math.random() - 0.5);
+      party.push(...backup.slice(0, stillNeeded));
 
       if (party.length === size) {
         matched.push(party);
-        const usedIds = new Set(party.map(p => p.id));
-        members = members.filter(m => !usedIds.has(m.id));
+        const matchedIds = new Set(party.map(p => p.id));
+        members = members.filter(m => !matchedIds.has(m.id));
       } else {
-        break;
+        break; // 더 이상 매칭 불가
       }
     }
 
     const newlyMatched = matched.flat();
     const newMatchedIds = new Set(newlyMatched.map(m => m.id));
 
+    // remove newly matched from 신청자
     newlyMatched.forEach(m => {
       db.ref(`parties/${key}/${m.id}`).remove();
     });
 
-    previousMatched.forEach(prev => {
-      if (!newMatchedIds.has(prev.id)) {
-        db.ref(`parties/${key}/${prev.id}`).set(prev);
+    // 이전에 매칭되었지만 지금은 빠진 사람 다시 신청자에 복구
+    previousMatched.forEach(p => {
+      if (!newMatchedIds.has(p.id)) {
+        db.ref(`parties/${key}/${p.id}`).set(p);
       }
     });
 
     matchedParties[key] = matched;
-    db.ref(`matchedParties/${key}`).set(matched);
+    db.ref(`matchedParties/${key}`).set(matched).then(() => {
+      renderMatched(key);
+    });
+
+    // 신청자 목록 다시 렌더링
+    db.ref(`parties/${key}`).once('value', (snap) => {
+      const data = snap.val();
+      const list = data ? Object.entries(data).map(([id, v]) => ({ ...v, id })) : [];
+      renderSection(key, list);
+    });
   });
 }
+
 
 
   function renderMatched(key) {
