@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -27,10 +26,7 @@
   </style>
 </head>
 <body>
-
 <h1 style="text-align:center">던전별 파티 신청</h1>
-<p style="text-align:center; font-size: 0.9em;">여러 파티 연속 생성 확인용 테스트</p>
-  
 <form id="partyForm">
   <label>던전:</label>
   <select id="dungeon">
@@ -38,11 +34,7 @@
     <option value="레이드">레이드</option>
   </select>
   <label>난이도:</label>
-  <select id="difficulty">
-    <option value="입문">입문</option>
-    <option value="어려움">어려움</option>
-    <option value="매우어려움">매우어려움</option>
-  </select>
+  <select id="difficulty"></select>
   <label>닉네임:</label>
   <input type="text" id="name" required>
   <label>직업:</label>
@@ -55,221 +47,157 @@
   </select>
   <button type="submit">신청</button>
 </form>
-
 <div id="dungeonSections"></div>
-
 <script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyColXLlJbXM6x97A4j1ME8QWNKTheAccFM",
-    authDomain: "mabinogim-flowerroad-party.firebaseapp.com",
-    databaseURL: "https://mabinogim-flowerroad-party-default-rtdb.firebaseio.com",
-    projectId: "mabinogim-flowerroad-party",
-    storageBucket: "mabinogim-flowerroad-party.appspot.com",
-    messagingSenderId: "1051963693734",
-    appId: "1:1051963693734:web:c264607ec4ecf562147267",
-    measurementId: "G-68YFF3DH5W"
-  };
+const firebaseConfig = {
+  apiKey: "AIzaSyColXLlJbXM6x97A4j1ME8QWNKTheAccFM",
+  authDomain: "mabinogim-flowerroad-party.firebaseapp.com",
+  databaseURL: "https://mabinogim-flowerroad-party-default-rtdb.firebaseio.com",
+  projectId: "mabinogim-flowerroad-party",
+  storageBucket: "mabinogim-flowerroad-party.appspot.com",
+  messagingSenderId: "1051963693734",
+  appId: "1:1051963693734:web:c264607ec4ecf562147267"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
-  const dungeonConfigs = {
-    '어비스': { difficulties: ['입문', '어려움', '매우어려움'], partySize: 4 },
-    '레이드': { difficulties: ['입문'], partySize: 8 }
-  };
+const dungeonConfigs = {
+  '어비스': { difficulties: ['입문', '어려움', '매우어려움'], partySize: 4 },
+  '레이드': { difficulties: ['입문'], partySize: 8 }
+};
 
-  const matchedParties = {};
-  const sectionsContainer = document.getElementById('dungeonSections');
-  const form = document.getElementById('partyForm');
-  const dungeonSelect = document.getElementById('dungeon');
-  const difficultySelect = document.getElementById('difficulty');
+const matchedParties = {};
+const sectionsContainer = document.getElementById('dungeonSections');
+const form = document.getElementById('partyForm');
+const dungeonSelect = document.getElementById('dungeon');
+const difficultySelect = document.getElementById('difficulty');
 
-  dungeonSelect.addEventListener('change', updateDifficultyOptions);
-  function updateDifficultyOptions() {
-    const selected = dungeonSelect.value;
-    const config = dungeonConfigs[selected];
-    difficultySelect.innerHTML = '';
-    config.difficulties.forEach(diff => {
-      const option = document.createElement('option');
-      option.value = diff;
-      option.textContent = diff;
-      difficultySelect.appendChild(option);
-    });
-  }
-  updateDifficultyOptions();
-
-  form.addEventListener('submit', e => {
-    e.preventDefault();
-    const dungeon = dungeonSelect.value;
-    const difficulty = difficultySelect.value;
-    const name = document.getElementById('name').value;
-    const job = document.getElementById('job').value;
-    const role = document.getElementById('role').value;
-    const key = `${dungeon}_${difficulty}`;
-    const ref = db.ref(`parties/${key}`);
-    const newRef = ref.push();
-    newRef.set({ name, job, role, id: newRef.key });
-    form.reset();
-    updateDifficultyOptions();
+dungeonSelect.addEventListener('change', updateDifficultyOptions);
+function updateDifficultyOptions() {
+  const selected = dungeonSelect.value;
+  const config = dungeonConfigs[selected];
+  difficultySelect.innerHTML = '';
+  config.difficulties.forEach(diff => {
+    const option = document.createElement('option');
+    option.value = diff;
+    option.textContent = diff;
+    difficultySelect.appendChild(option);
   });
+}
+updateDifficultyOptions();
 
-  function removeApplicant(key, id) {
-    db.ref(`matchedParties/${key}`).once('value', (snapshot) => {
-      const matched = snapshot.val()?.flat() || [];
-      const isMatched = matched.some(m => m.id === id);
-      if (isMatched) {
-        alert("⚠️ 이미 매칭된 인원은 신청 취소할 수 없습니다.");
-      } else {
-        db.ref(`parties/${key}/${id}`).remove();
-      }
-    });
+form.addEventListener('submit', e => {
+  e.preventDefault();
+  const key = `${dungeonSelect.value}_${difficultySelect.value}`;
+  const ref = db.ref(`parties/${key}`);
+  const newRef = ref.push();
+  newRef.set({
+    name: document.getElementById('name').value,
+    job: document.getElementById('job').value,
+    role: document.getElementById('role').value,
+    id: newRef.key
+  });
+  form.reset();
+  updateDifficultyOptions();
+});
+
+function renderSection(key, fullList) {
+  let section = document.getElementById(`section-${key}`);
+  if (!section) {
+    section = document.createElement('div');
+    section.id = `section-${key}`;
+    section.className = 'dungeon-section';
+    section.innerHTML = `
+      <h2>${key.replace('_', ' - ')} (<span id="${key}-count">0</span>명 신청)</h2>
+      <ul id="${key}-list"></ul>
+      <div class="match-buttons">
+        <button onclick="match('${key}', ${dungeonConfigs[key.split('_')[0]].partySize})">파티 자동 매칭</button>
+      </div>
+      <div id="${key}-matched"></div>`;
+    sectionsContainer.appendChild(section);
   }
+  const list = document.getElementById(`${key}-list`);
+  const countSpan = document.getElementById(`${key}-count`);
+  const matched = (matchedParties[key] || []).flat();
+  const remaining = fullList.filter(p => !matched.some(m => m.id === p.id));
+  countSpan.innerText = remaining.length;
+  list.innerHTML = '';
+  remaining.forEach((a, idx) => {
+    const li = document.createElement('li');
+    li.innerHTML = `${idx + 1}. <span class="role-${a.role === '딜러' ? 'dps' : a.role === '힐러' ? 'heal' : 'tank'}">${a.name} (${a.job}) ${a.role}</span>
+      <button class="inline-btn" onclick="removeApplicant('${key}', '${a.id}')">❌</button>`;
+    list.appendChild(li);
+  });
+}
 
-  function deleteParty(key, index) {
-    const removed = matchedParties[key].splice(index, 1)[0];
-    removed.forEach(p => {
-      db.ref(`parties/${key}/${p.id}`).remove();
-    });
-    db.ref(`matchedParties/${key}`).set(matchedParties[key]);
-  }
+function removeApplicant(key, id) {
+  db.ref(`parties/${key}/${id}`).remove();
+}
 
-  function renderSection(key, fullList) {
-    let section = document.getElementById(`section-${key}`);
-    if (!section) {
-      section = document.createElement('div');
-      section.id = `section-${key}`;
-      section.className = 'dungeon-section';
-      section.innerHTML = `
-        <h2>${key.replace('_', ' - ')} (<span id="${key}-count">0</span>명 신청)</h2>
-        <ul id="${key}-list"></ul>
-        <div class="match-buttons">
-          <button onclick="match('${key}', ${dungeonConfigs[key.split('_')[0]].partySize})">파티 자동 매칭</button>
-        </div>
-        <div id="${key}-matched"></div>
-      `;
-      sectionsContainer.appendChild(section);
-    }
+function deleteParty(key, index) {
+  const removed = matchedParties[key].splice(index, 1)[0];
+  removed.forEach(p => db.ref(`parties/${key}/${p.id}`).set(p));
+  db.ref(`matchedParties/${key}`).set(matchedParties[key]);
+}
 
-    const list = document.getElementById(`${key}-list`);
-    const countSpan = document.getElementById(`${key}-count`);
-    const matched = (matchedParties[key] || []).flat();
-    const remaining = fullList.filter(p => !matched.some(m => m.id === p.id));
-    countSpan.innerText = remaining.length;
-    list.innerHTML = '';
-    remaining.forEach((a, idx) => {
-      const li = document.createElement('li');
-      li.innerHTML = `${idx + 1}. <span class="role-${a.role === '딜러' ? 'dps' : a.role === '힐러' ? 'heal' : 'tank'}">${a.name} (${a.job}) ${a.role}</span>
-        <button class="inline-btn" onclick="removeApplicant('${key}', '${a.id}')">❌</button>`;
-      list.appendChild(li);
-    });
-  }
+function renderMatched(key) {
+  const resultBox = document.getElementById(`${key}-matched`);
+  const matched = matchedParties[key] || [];
+  resultBox.innerHTML = matched.length === 0 ? "<p>매칭된 파티 없음</p>" : matched.map((party, i) => `
+    <div class="party-block"><strong>파티 ${i + 1}</strong>: 
+    ${party.map(p => `<span class="role-${p.role === '딜러' ? 'dps' : p.role === '힐러' ? 'heal' : 'tank'}">${p.name} (${p.role})</span>`).join(', ')}
+    <button class="inline-btn" onclick="deleteParty('${key}', ${i})">삭제</button></div>`).join('');
+}
 
 function match(key, size) {
-  db.ref(`parties/${key}`).once('value', (snapshot) => {
-    const currentApplicants = snapshot.val() || {};
-    let members = Object.values(currentApplicants);
-    const previousMatched = (matchedParties[key] || []).flat();
+  db.ref(`parties/${key}`).once('value', snap => {
+    const all = snap.val() || {};
+    let members = Object.values(all);
+    const isRaid = size === 8;
     const matched = [];
-
-    const isRaid = key.startsWith("레이드");
-    const healCount = isRaid ? 2 : 1;
-    const tankCount = isRaid ? 2 : 1;
-
     while (members.length >= size) {
-      let party = [];
-
+      const party = [];
       const tanks = members.filter(m => m.role === '탱커');
       const heals = members.filter(m => m.role === '힐러');
       const dps = members.filter(m => m.role === '딜러');
-
-      if (tanks.length < tankCount || heals.length < healCount) break;
-
-      party.push(...heals.slice(0, healCount));
-      party.push(...tanks.slice(0, tankCount));
-
-      const usedIds = new Set(party.map(p => p.id));
-
-      // 나머지 자리는 딜러 우선
-      const remainingSlots = size - party.length;
-      const availableDps = dps.filter(d => !usedIds.has(d.id)).sort(() => Math.random() - 0.5);
-      party.push(...availableDps.slice(0, remainingSlots));
-
-      // 그래도 부족하면 힐러, 탱커 중 중복 없는 사람 추가
-      const updatedUsed = new Set(party.map(p => p.id));
-      const stillNeeded = size - party.length;
-      const backup = members.filter(m => !updatedUsed.has(m.id)).sort(() => Math.random() - 0.5);
-      party.push(...backup.slice(0, stillNeeded));
-
+      party.push(...tanks.slice(0, isRaid ? 2 : 1));
+      party.push(...heals.slice(0, isRaid ? 2 : 1));
+      const ids = new Set(party.map(p => p.id));
+      const rest = members.filter(m => !ids.has(m.id));
+      const restDps = rest.filter(m => m.role === '딜러');
+      const extra = restDps.concat(rest.filter(m => m.role !== '딜러')).sort(() => Math.random() - 0.5);
+      party.push(...extra.slice(0, size - party.length));
       if (party.length === size) {
         matched.push(party);
-        const matchedIds = new Set(party.map(p => p.id));
-        members = members.filter(m => !matchedIds.has(m.id));
-      } else {
-        break; // 더 이상 매칭 불가
-      }
+        members = members.filter(m => !party.some(p => p.id === m.id));
+      } else break;
     }
-
-    const newlyMatched = matched.flat();
-    const newMatchedIds = new Set(newlyMatched.map(m => m.id));
-
-    // remove newly matched from 신청자
-    newlyMatched.forEach(m => {
-      db.ref(`parties/${key}/${m.id}`).remove();
-    });
-
-    // 이전에 매칭되었지만 지금은 빠진 사람 다시 신청자에 복구
-    previousMatched.forEach(p => {
-      if (!newMatchedIds.has(p.id)) {
-        db.ref(`parties/${key}/${p.id}`).set(p);
-      }
-    });
-
+    const prev = (matchedParties[key] || []).flat();
+    const newIds = new Set(matched.flat().map(m => m.id));
+    prev.forEach(p => { if (!newIds.has(p.id)) db.ref(`parties/${key}/${p.id}`).set(p); });
+    matched.flat().forEach(p => db.ref(`parties/${key}/${p.id}`).remove());
     matchedParties[key] = matched;
-    db.ref(`matchedParties/${key}`).set(matched).then(() => {
-      renderMatched(key);
-    });
-
-    // 신청자 목록 다시 렌더링
-    db.ref(`parties/${key}`).once('value', (snap) => {
-      const data = snap.val();
-      const list = data ? Object.entries(data).map(([id, v]) => ({ ...v, id })) : [];
+    db.ref(`matchedParties/${key}`).set(matched).then(() => renderMatched(key));
+    db.ref(`parties/${key}`).once('value', s => {
+      const list = s.val() ? Object.entries(s.val()).map(([id, v]) => ({ ...v, id })) : [];
       renderSection(key, list);
     });
   });
 }
 
-
-
-  function renderMatched(key) {
-    const resultBox = document.getElementById(`${key}-matched`);
-    const matched = matchedParties[key] || [];
-    if (matched.length === 0) {
-      resultBox.innerHTML = "<p>매칭된 파티 없음</p>";
-      return;
-    }
-    resultBox.innerHTML = matched.map((party, i) => `
-      <div class="party-block">
-        <strong>파티 ${i + 1}</strong>: 
-        ${party.map(p => `<span class="role-${p.role === '딜러' ? 'dps' : p.role === '힐러' ? 'heal' : 'tank'}">${p.name} (${p.role})</span>`).join(', ')}
-        <button class="inline-btn" onclick="deleteParty('${key}', ${i})">삭제</button>
-      </div>
-    `).join('');
-  }
-
-  for (const dungeon in dungeonConfigs) {
-    dungeonConfigs[dungeon].difficulties.forEach(diff => {
-      const key = `${dungeon}_${diff}`;
-      db.ref(`parties/${key}`).on('value', (snapshot) => {
-        const data = snapshot.val();
-        const list = data ? Object.entries(data).map(([id, v]) => ({ ...v, id })) : [];
-        renderSection(key, list);
-      });
-      db.ref(`matchedParties/${key}`).on('value', (snapshot) => {
-        matchedParties[key] = snapshot.val() || [];
-        renderMatched(key);
-      });
+for (const dungeon in dungeonConfigs) {
+  dungeonConfigs[dungeon].difficulties.forEach(diff => {
+    const key = `${dungeon}_${diff}`;
+    db.ref(`parties/${key}`).on('value', snap => {
+      const list = snap.val() ? Object.entries(snap.val()).map(([id, v]) => ({ ...v, id })) : [];
+      renderSection(key, list);
     });
-  }
+    db.ref(`matchedParties/${key}`).on('value', snap => {
+      matchedParties[key] = snap.val() || [];
+      renderMatched(key);
+    });
+  });
+}
 </script>
-
 </body>
 </html>
