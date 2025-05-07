@@ -148,10 +148,11 @@ function renderSection(key, fullList) {
   countSpan.innerText = remaining.length;
   list.innerHTML = '';
   remaining.forEach((a, idx) => {
-    const li = document.createElement('li');
-    li.innerHTML = `${idx + 1}. <span class="role-${a.role === '딜러' ? 'dps' : a.role === '힐러' ? 'heal' : 'tank'}">${a.name} (${a.job}) ${a.role}</span>
-      <button class="inline-btn" onclick="removeApplicant('${key}', '${a.id}')">❌</button>`;
-    list.appendChild(li);
+  const specialNote = a.note ? ` - [${a.note}]` : "";
+  const li = document.createElement('li');
+  li.innerHTML = `${idx + 1}. <span class="role-${a.role === '딜러' ? 'dps' : a.role === '힐러' ? 'heal' : 'tank'}">${a.name} (${a.job}) ${a.role}${specialNote}</span>
+    <button class="inline-btn" onclick="removeApplicant('${key}', '${a.id}')">❌</button>`;
+  list.appendChild(li);
   });
 }
 
