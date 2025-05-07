@@ -164,10 +164,14 @@
 
   function match(key, size) {
     db.ref(`parties/${key}`).once('value', (snapshot) => {
-      let members = Object.values(snapshot.val() || {});
+      let currentApplicants = snapshot.val() || {};
+      let members = Object.values(currentApplicants);
+  
+      // 1. 기존 매칭 정보 (전부 flat으로 가져오기)
       const previousMatched = (matchedParties[key] || []).flat();
       const matched = [];
-
+  
+      // 2. 매칭 알고리즘 실행
       while (members.length >= size) {
         const party = [];
         const tanks = members.filter(m => m.role === '탱커');
@@ -180,22 +184,29 @@
         members = members.filter(m => !party.includes(m));
         matched.push(party);
       }
-
+  
       const newlyMatched = matched.flat();
       const newMatchedIds = new Set(newlyMatched.map(m => m.id));
       const prevMatchedIds = new Set(previousMatched.map(m => m.id));
-
-      newlyMatched.forEach(m => db.ref(`parties/${key}/${m.id}`).remove());
+  
+      // ✅ 1. 새 매칭 인원 신청 목록에서 삭제
+      newlyMatched.forEach(m => {
+        db.ref(`parties/${key}/${m.id}`).remove();
+      });
+  
+      // ✅ 2. 기존 파티 인원 중 새 매칭에 없는 사람은 신청 목록에 다시 등록
       previousMatched.forEach(prev => {
         if (!newMatchedIds.has(prev.id)) {
           db.ref(`parties/${key}/${prev.id}`).set(prev);
         }
       });
-
+  
+      // ✅ 3. matchedParties 업데이트
       matchedParties[key] = matched;
       db.ref(`matchedParties/${key}`).set(matched);
     });
   }
+
 
   function renderMatched(key) {
     const resultBox = document.getElementById(`${key}-matched`);
