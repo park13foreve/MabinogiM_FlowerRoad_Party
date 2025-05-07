@@ -1,8 +1,9 @@
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>던전별 파티 매칭</title>
+  <title>마비노기 꽃길 길드파티</title>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,8 +16,26 @@
     .role-tank { background-color: #C2E0FF; padding: 2px 5px; border-radius: 4px; }
     .party-block { margin-bottom: 10px; }
     ul { padding-left: 20px; }
-    li { margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
-    .inline-btn { font-size: 0.8em; padding: 3px 6px; margin-left: 10px; }
+    li {
+      margin-bottom: 5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: nowrap;
+    }
+    .inline-btn {
+      width: 22px;
+      height: 22px;
+      font-size: 12px;
+      line-height: 20px;
+      text-align: center;
+      padding: 0;
+      margin-left: 10px;
+      background: #eee;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      cursor: pointer;
+    }
     .match-buttons { display: flex; gap: 10px; margin-top: 10px; justify-content: center; flex-wrap: wrap; }
     .match-buttons button { flex: 1; min-width: 120px; padding: 6px 10px; font-size: 0.9em; }
     @media screen and (max-width: 600px) {
@@ -26,7 +45,7 @@
   </style>
 </head>
 <body>
-<h1 style="text-align:center">던전별 파티 신청</h1>
+<h1 style="text-align:center">마비노기 꽃길 길드파티</h1>
 <form id="partyForm">
   <label>던전:</label>
   <select id="dungeon">
