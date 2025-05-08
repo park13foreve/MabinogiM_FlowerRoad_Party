@@ -81,9 +81,9 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
+
 const matchedParties = {};
 const fixedParties = {};
-
 const dungeonConfigs = {
   '어비스': { difficulties: ['입문', '어려움', '매우어려움'], partySize: 4 },
   '레이드': { difficulties: ['입문'], partySize: 8 }
@@ -104,10 +104,9 @@ function updateDifficultyOptions() {
     option.textContent = diff;
     difficultySelect.appendChild(option);
   });
-  if (selected === '어비스') {
-    difficultySelect.value = '매우어려움';
-  }
+  if (selected === '어비스') difficultySelect.value = '매우어려움';
 }
+
 dungeonSelect.addEventListener('change', updateDifficultyOptions);
 updateDifficultyOptions();
 
@@ -127,6 +126,10 @@ form.addEventListener('submit', e => {
   updateDifficultyOptions();
 });
 
+function removeApplicant(key, id) {
+  db.ref(`parties/${key}/${id}`).remove();
+}
+
 function renderSection(key, fullList) {
   let section = document.getElementById(`section-${key}`);
   if (!section) {
@@ -143,7 +146,6 @@ function renderSection(key, fullList) {
       <div id="${key}-fixed"></div>`;
     sectionsContainer.appendChild(section);
   }
-
   const list = document.getElementById(`${key}-list`);
   const countSpan = document.getElementById(`${key}-count`);
   const matched = (matchedParties[key] || []).flat();
@@ -156,108 +158,6 @@ function renderSection(key, fullList) {
     li.innerHTML = `${idx + 1}. <span class="role-${a.role === '딜러' ? 'dps' : a.role === '힐러' ? 'heal' : 'tank'}">${a.name} (${a.job}) ${a.role}${specialNote}</span>
       <button class="inline-btn" onclick="removeApplicant('${key}', '${a.id}')">❌</button>`;
     list.appendChild(li);
-  });
-}
-  }
-  const list = document.getElementById(`${key}-list`);
-  const countSpan = document.getElementById(`${key}-count`);
-  const matched = (matchedParties[key] || []).flat();
-  const remaining = fullList.filter(p => !matched.some(m => m.id === p.id));
-  countSpan.innerText = remaining.length;
-  list.innerHTML = '';
-  remaining.forEach((a, idx) => {
-    const specialNote = a.note ? ` - [${a.note}]` : "";
-    const li = document.createElement('li');
-    li.innerHTML = `${idx + 1}. <span class="role-${a.role === '딜러' ? 'dps' : a.role === '힐러' ? 'heal' : 'tank'}">${a.name} (${a.job}) ${a.role}${specialNote}</span>
-      <button class="inline-btn" onclick="removeApplicant('${key}', '${a.id}')">❌</button>`;
-    list.appendChild(li);
-  });
-}
-
-function removeApplicant(key, id) {
-  db.ref(`parties/${key}/${id}`).remove();
-}
-
-function deleteParty(key, index) {
-  const removed = matchedParties[key].splice(index, 1)[0];
-  removed.forEach(p => db.ref(`parties/${key}/${p.id}`).set(p));
-  db.ref(`matchedParties/${key}`).set(matchedParties[key]);
-}
-
-function renderMatched(key) {
-  const resultBox = document.getElementById(`${key}-matched`);
-  const matched = matchedParties[key] || [];
-  resultBox.innerHTML = matched.length === 0 ? "<p>매칭된 파티 없음</p>" : matched.map((party, i) => {
-    const partyHTML = party.map(p => {
-      const roleTag = `<span class=\"role-${p.role === '딜러' ? 'dps' : p.role === '힐러' ? 'heal' : 'tank'}\">${p.name} (${p.job})</span>`;
-      return p.note ? `${roleTag} - ${p.note}` : roleTag;
-    }).join(', ');
-    return `
-      <div class=\"party-block\"><strong>파티 ${i + 1}</strong>: 
-      ${partyHTML}
-      <button class=\"inline-btn\" onclick=\"fixParty('${key}', ${i})\">📌</button>
-      <button class=\"inline-btn\" onclick=\"deleteParty('${key}', ${i})\">❌</button></div>
-    `;
-  }).join('');
-  renderFixed(key);
-}
-
-function renderFixed(key) {
-  const section = document.getElementById(`section-${key}`);
-  if (!section) return;
-  const fixedContainer = document.getElementById(`${key}-fixed`) || document.createElement('div');
-  fixedContainer.id = `${key}-fixed`;
-  fixedContainer.innerHTML = '<h3>📌 고정된 파티</h3>';
-  const ref = db.ref(`fixedParties/${key}`);
-  ref.once('value', snap => {
-    const fixed = snap.val() || [];
-    fixedParties[key] = fixed;
-    fixed.forEach((party, i) => {
-      const block = document.createElement('div');
-      block.className = 'fixed-party';
-      const members = party.members.map(p => `${p.name}(${p.job})`).join(', ');
-      block.innerHTML = `<strong>파티 ${i + 1}</strong>: ${members}<br>📝 메모: ${party.memo || ''}
-      <button class=\"inline-btn\" onclick=\"editMemo('${key}', ${i})\">✏</button>
-      <button class=\"inline-btn\" onclick=\"unfixParty('${key}', ${i})\">❌</button>`;
-      fixedContainer.appendChild(block);
-    });
-    // 고정 파티를 하단에 위치시킴
-  section.appendChild(fixedContainer);
-  });
-}
-
-function fixParty(key, index) {
-  const party = matchedParties[key][index];
-  const memo = prompt("파티 메모를 입력하세요:");
-  const ref = db.ref(`fixedParties/${key}`);
-  ref.once('value', snap => {
-    const fixed = snap.val() || [];
-    fixed.push({ members: party, memo });
-    ref.set(fixed);
-    deleteParty(key, index);
-    renderFixed(key);
-  });
-}
-
-function unfixParty(key, index) {
-  const ref = db.ref(`fixedParties/${key}`);
-  ref.once('value', snap => {
-    const fixed = snap.val() || [];
-    const [removed] = fixed.splice(index, 1);
-    removed.members.forEach(p => db.ref(`parties/${key}/${p.id}`).set(p));
-    ref.set(fixed);
-    renderFixed(key);
-  });
-}
-
-function editMemo(key, index) {
-  const newMemo = prompt("새 메모를 입력하세요:");
-  const ref = db.ref(`fixedParties/${key}`);
-  ref.once('value', snap => {
-    const fixed = snap.val() || [];
-    fixed[index].memo = newMemo;
-    ref.set(fixed);
-    renderFixed(key);
   });
 }
 
