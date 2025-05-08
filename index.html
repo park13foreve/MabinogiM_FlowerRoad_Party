@@ -91,12 +91,15 @@ form.addEventListener('submit', e => {
   const key = `${dungeonSelect.value}_${difficultySelect.value}`;
   const ref = db.ref(`parties/${key}`).push();
   ref.set({
-    name: name.value,
-    job: job.value,
-    role: role.value,
-    note: note.value,
+    name: document.getElementById('name').value,
+    job: document.getElementById('job').value,
+    role: document.getElementById('role').value,
+    note: document.getElementById('note').value,
     id: ref.key
   });
+  form.reset();
+  updateDifficultyOptions();
+});
   form.reset(); updateDifficultyOptions();
 });
 
@@ -116,7 +119,9 @@ function renderSection(key, list) {
     sec.innerHTML = `
       <h2>${key.replace('_',' - ')} (<span id="${key}-count">0</span>명 신청)</h2>
       <ul id="${key}-list"></ul>
-      <div class="match-buttons"><button onclick="match('${key}', ${dungeonConfigs[dungeonSelect.value].partySize})">파티 자동 매칭</button></div>
+      <div class="match-buttons">
+        <button onclick="match('${key}', ${dungeonConfigs[key.split('_')[0]].partySize})">파티 자동 매칭</button>
+      </div>
       <div id="${key}-matched"></div>`;
     sectionsContainer.appendChild(sec);
   }
