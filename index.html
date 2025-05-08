@@ -74,7 +74,6 @@
     form.addEventListener('submit', e => {
       e.preventDefault();
       const key = `${dungeonSelect.value}_${difficultySelect.value}`;
-      // 고정 파티 멤버 재등록 방지
       const pinned = (pinnedParties[key] || []).flat();
       if (pinned.some(m => m.nickname === nicknameInput.value.trim())) {
         alert('고정된 파티 멤버는 다시 신청할 수 없습니다.');
@@ -111,7 +110,7 @@
       });
     }
     window.renderSection = renderSection;
-    function removeApplicant(key,id) { db.ref(`parties/${key}/${id}`).remove(); } window.removeApplicant = removeApplicant;
+    function removeApplicant(key,id){ db.ref(`parties/${key}/${id}`).remove(); } window.removeApplicant = removeApplicant;
 
     function renderMatched(key) {
       const box = document.getElementById(`${key}-matched`);
@@ -133,34 +132,68 @@
     }
     window.renderMatched = renderMatched;
 
-    function pinParty(key,idx) { if (!pinnedParties[key]) pinnedParties[key] = []; const grp = matchedParties[key].splice(idx,1)[0]; pinnedParties[key].push(grp); db.ref(`matchedParties/${key}`).set([...pinnedParties[key], ...matchedParties[key]]); renderMatched(key); } window.pinParty = pinParty;
-    function unpinParty(key,idx) { const grp = pinnedParties[key].splice(idx,1)[0]; matchedParties[key].unshift(grp); db.ref(`matchedParties/${key}`).set([...pinnedParties[key], ...matchedParties[key]]); renderMatched(key); } window.unpinParty = unpinParty;
-    function deleteParty(key,idx) { const p = matchedParties[key].splice(idx,1)[0]; p.forEach(m=> db.ref(`parties/${key}/${m.id}`).set(m)); db.ref(`matchedParties/${key}`).set([...pinnedParties[key], ...matchedParties[key]]); renderMatched(key); } window.deleteParty = deleteParty;
+    function pinParty(key,idx) { if (!pinnedParties[key]) pinnedParties[key] = [];
+      const grp = matchedParties[key].splice(idx,1)[0];
+      pinnedParties[key].push(grp);
+      db.ref(`matchedParties/${key}`).set([...pinnedParties[key], ...matchedParties[key]]);
+      renderMatched(key);
+    } window.pinParty = pinParty;
+
+    function unpinParty(key,idx) { const grp = pinnedParties[key].splice(idx,1)[0]; matchedParties[key].unshift(grp);
+      db.ref(`matchedParties/${key}`).set([...pinnedParties[key], ...matchedParties[key]]);
+      renderMatched(key);
+    } window.unpinParty = unpinParty;
+
+    function deleteParty(key,idx) { const p = matchedParties[key].splice(idx,1)[0]; p.forEach(m => db.ref(`parties/${key}/${m.id}`).set(m));
+      db.ref(`matchedParties/${key}`).set([...pinnedParties[key], ...matchedParties[key]]);
+      renderMatched(key);
+    } window.deleteParty = deleteParty;
 
     function match(key,size) {
       const partiesRef = db.ref(`parties/${key}`), matchedRef = db.ref(`matchedParties/${key}`);
-      if (matchedParties[key]) matchedParties[key].flat().forEach(m=> db.ref(`parties/${key}/${m.id}`).set(m));
+      if (matchedParties[key]) matchedParties[key].flat().forEach(m => db.ref(`parties/${key}/${m.id}`).set(m));
       matchedRef.set([])
-        .then(()=> partiesRef.once('value'))
-        .then(snap=>{
-          let mems = snap.val()?Object.entries(snap.val()).map(([id,v])=>normalize(v,id)):[];
+        .then(() => partiesRef.once('value'))
+        .then(snap => {
+          let mems = snap.val() ? Object.entries(snap.val()).map(([id,v]) => normalize(v,id)) : [];
+          const pinnedIds = new Set((pinnedParties[key] || []).flat().map(m => m.id));
+          mems = mems.filter(p => !pinnedIds.has(p.id));
           shuffle(mems);
           const newMatched = [];
-          while(mems.length>=size){ const group=[]; const used=new Set(); for(const p of mems){ if(group.length===size) break; if(!used.has(p.nickname)){ group.push(p); used.add(p.nickname); }} if(group.length< size) break; newMatched.push(group); mems = mems.filter(p=>!used.has(p.nickname)); }
+          while (mems.length >= size) {
+            const group = [];
+            const used = new Set();
+            for (const p of mems) {
+              if (group.length === size) break;
+              if (!used.has(p.nickname)) {
+                group.push(p);
+                used.add(p.nickname);
+              }
+            }
+            if (group.length < size) break;
+            newMatched.push(group);
+            mems = mems.filter(p => !used.has(p.nickname));
+          }
           matchedParties[key] = newMatched;
-          return matchedRef.set([...(pinnedParties[key]||[]), ...newMatched]);
+          return matchedRef.set([...(pinnedParties[key] || []), ...newMatched]);
         })
-        .then(()=> partiesRef.once('value'))
-        .then(()=> Promise.all((matchedParties[key]||[]).flat().map(p=> db.ref(`parties/${key}/${p.id}`).remove())))
-        .then(()=> renderMatched(key))
-        .catch(err=> console.error(err));
+        .then(() => partiesRef.once('value'))
+        .then(() => Promise.all((matchedParties[key] || []).flat().map(p => db.ref(`parties/${key}/${p.id}`).remove())))
+        .then(() => renderMatched(key))
+        .catch(err => console.error(err));
     }
     window.match = match;
 
-    Object.keys(dungeonConfigs).forEach(d=> dungeonConfigs[d].difficulties.forEach(diff=>{
+    Object.keys(dungeonConfigs).forEach(d => dungeonConfigs[d].difficulties.forEach(diff => {
       const k = `${d}_${diff}`;
-      db.ref(`parties/${k}`).on('value',snap=>{ const list = snap.val()?Object.entries(snap.val()).map(([id,v])=>normalize(v,id)):[]; renderSection(k,list); });
-      db.ref(`matchedParties/${k}`).on('value',snap=>{ matchedParties[k] = snap.val()||[]; renderMatched(k); });
+      db.ref(`parties/${k}`).on('value', snap => {
+        const list = snap.val() ? Object.entries(snap.val()).map(([id,v]) => normalize(v,id)) : [];
+        renderSection(k, list);
+      });
+      db.ref(`matchedParties/${k}`).on('value', snap => {
+        matchedParties[k] = snap.val() || [];
+        renderMatched(k);
+      });
     }));
   </script>
 </body>
