@@ -148,6 +148,7 @@ function match(key) {
   db.ref(`parties/${key}`).once('value', snap => {
     let members = Object.values(snap.val() || {});
     const matched = [];
+
     while (members.length >= size) {
       const party = [];
       const nameSet = new Set();
@@ -161,25 +162,27 @@ function match(key) {
           }
         }
       };
+
       pushRole(byRole('탱커'), size >= 8 ? 2 : 1);
       pushRole(byRole('힐러'), size >= 8 ? 2 : 1);
       pushRole(byRole('딜러'), size - party.length);
+
       if (party.length === size) {
         matched.push(party);
         members = members.filter(p => !party.includes(p));
-      } else break;
+      } else {
+        break;
+      }
     }
 
     db.ref(`matchedParties/${key}`).once('value', oldSnap => {
       const existing = oldSnap.val() || [];
       const updated = existing.concat(matched);
-      matched.forEach(party => party.forEach(p => db.ref(`parties/${key}/${p.id}`).remove()));
+      matched.flat().forEach(p => db.ref(`parties/${key}/${p.id}`).remove());
       db.ref(`matchedParties/${key}`).set(updated);
     });
   });
-}
-  });
-}
+};
 
 function renderMatched(key, data) {
   const div = document.getElementById(`${key}-matched`);
