@@ -114,36 +114,23 @@
 
     function renderMatched(key) {
       const box = document.getElementById(`${key}-matched`);
-      const allMatched = matchedParties[key] || [];
-      if (!allMatched.length) {
-        box.innerHTML = '<p>매칭된 파티 없음</p>';
-        return;
-      }
+      const pinned = pinnedParties[key] || [];
+      const unpinned = matchedParties[key] || [];
+      if (!pinned.length && !unpinned.length) { box.innerHTML = '<p>매칭된 파티 없음</p>'; return; }
       let html = '';
-      allMatched.forEach((party, i) => {
-        const isPinned = (pinnedParties[key] || []).some(pinnedGrp => {
-          const pinnedIds = new Set(pinnedGrp.map(m => m.id));
-          const partyIds = new Set(party.map(m => m.id));
-          if (pinnedIds.size !== partyIds.size) return false;
-          for (const id of pinnedIds) { if (!partyIds.has(id)) return false; }
-          return true;
-        });
-        const label = isPinned ? `🔒 고정 파티 ${i+1}` : `파티 ${i+1}`;
-        const members = party.map(p => {
-          const tag = `<span class="role-${p.role==='딜러'?'dps':p.role==='힐러'?'heal':'tank'}">${p.nickname} (${p.job})</span>`;
-          return p.note ? `${tag} - [${p.note}]` : tag;
-        }).join(', ');
-        html += `<div class="party-block${isPinned ? ' fixed' : ''}"><strong>${label}</strong>: ${members}`;
-        if (isPinned) {
-          html += `<button class="inline-btn" onclick="unpinParty('${key}',${i})">고정해제</button>`;
-        } else {
-          html += `<button class="inline-btn" onclick="pinParty('${key}',${i})">고정</button><button class="inline-btn" onclick="deleteParty('${key}',${i})">❌</button>`;
-        }
-        html += `</div>`;
+      pinned.forEach((party,i) => {
+        const members = party.map(p=> `<span class="role-${p.role==='딜러'?'dps':p.role==='힐러'?'heal':'tank'}">${p.nickname} (${p.job})</span>` + (p.note?` - [${p.note}]`:''))
+                          .join(', ');
+        html += `<div class="party-block fixed"><strong>🔒 고정 파티 ${i+1}</strong>: ${members}<button class="inline-btn" onclick="unpinParty('${key}',${i})">고정해제</button></div>`;
+      });
+      unpinned.forEach((party,i) => {
+        const members = party.map(p=> `<span class="role-${p.role==='딜러'?'dps':p.role==='힐러'?'heal':'tank'}">${p.nickname} (${p.job})</span>` + (p.note?` - [${p.note}]`:''))
+                          .join(', ');
+        html += `<div class="party-block"><strong>파티 ${i+1}</strong>: ${members}<button class="inline-btn" onclick="pinParty('${key}',${i})">고정</button><button class="inline-btn" onclick="deleteParty('${key}',${i})">❌</button></div>`;
       });
       box.innerHTML = html;
     }
-    window.renderMatched = renderMatched = renderMatched;
+    window.renderMatched = renderMatched;
 
     function pinParty(key,idx) { if (!pinnedParties[key]) pinnedParties[key] = [];
       const grp = matchedParties[key].splice(idx,1)[0];
