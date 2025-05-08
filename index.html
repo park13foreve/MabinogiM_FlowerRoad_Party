@@ -49,6 +49,8 @@
     const dungeonConfigs = { 어비스: { difficulties: ['입문','어려움','매우어려움'], partySize: 4 }, 레이드: { difficulties: ['입문'], partySize: 8 } };
     const matchedParties = {};
     const pinnedParties = {};
+    // 고정 파티 메모 저장
+    const pinnedMemos = {};
 
     const form = document.getElementById('partyForm'),
           dungeonSelect = document.getElementById('dungeon'),
@@ -84,6 +86,14 @@
       ref.set({ nickname: nicknameInput.value.trim(), job: jobInput.value.trim(), role: roleSelect.value, note: noteInput.value.trim(), id: ref.key });
       form.reset(); updateDifficultyOptions();
     });
+
+    // 메모 추가 함수
+    function addMemo(key, idx) {
+      const memo = prompt('메모를 입력하세요:', (pinnedMemos[key] || [])[idx] || '');
+      if (!pinnedMemos[key]) pinnedMemos[key] = [];
+      pinnedMemos[key][idx] = memo;
+      renderMatched(key);
+    }
 
     function renderSection(key,list) {
       let sec = document.getElementById(`section-${key}`);
