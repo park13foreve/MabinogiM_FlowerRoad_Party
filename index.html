@@ -115,22 +115,38 @@
     function renderMatched(key) {
       const box = document.getElementById(`${key}-matched`);
       const pinned = pinnedParties[key] || [];
-      const unpinned = matchedParties[key] || [];
-      if (!pinned.length && !unpinned.length) { box.innerHTML = '<p>매칭된 파티 없음</p>'; return; }
+      // renderMatched only groups: pinned + unmatched (deduped against pinned)
+      let unmatched = (matchedParties[key] || []).filter(group => {
+        return !pinned.some(pinnedGrp => {
+          const pinnedIds = new Set(pinnedGrp.map(m => m.id));
+          const groupIds = new Set(group.map(m => m.id));
+          if (pinnedIds.size !== groupIds.size) return false;
+          for (const id of pinnedIds) if (!groupIds.has(id)) return false;
+          return true;
+        });
+      });
+      if (pinned.length === 0 && unmatched.length === 0) {
+        box.innerHTML = '<p>매칭된 파티 없음</p>';
+        return;
+      }
       let html = '';
-      pinned.forEach((party,i) => {
-        const members = party.map(p=> `<span class="role-${p.role==='딜러'?'dps':p.role==='힐러'?'heal':'tank'}">${p.nickname} (${p.job})</span>` + (p.note?` - [${p.note}]`:''))
-                          .join(', ');
+      // 고정 파티
+      pinned.forEach((party, i) => {
+        const members = party.map(p =>
+          `<span class="role-${p.role==='딜러'?'dps':p.role==='힐러'?'heal':'tank'}">${p.nickname} (${p.job})</span>` + (p.note ? ` - [${p.note}]` : '')
+        ).join(', ');
         html += `<div class="party-block fixed"><strong>🔒 고정 파티 ${i+1}</strong>: ${members}<button class="inline-btn" onclick="unpinParty('${key}',${i})">고정해제</button></div>`;
       });
-      unpinned.forEach((party,i) => {
-        const members = party.map(p=> `<span class="role-${p.role==='딜러'?'dps':p.role==='힐러'?'heal':'tank'}">${p.nickname} (${p.job})</span>` + (p.note?` - [${p.note}]`:''))
-                          .join(', ');
+      // 일반 파티
+      unmatched.forEach((party, i) => {
+        const members = party.map(p =>
+          `<span class="role-${p.role==='딜러'?'dps':p.role==='힐러'?'heal':'tank'}">${p.nickname} (${p.job})</span>` + (p.note ? ` - [${p.note}]` : '')
+        ).join(', ');
         html += `<div class="party-block"><strong>파티 ${i+1}</strong>: ${members}<button class="inline-btn" onclick="pinParty('${key}',${i})">고정</button><button class="inline-btn" onclick="deleteParty('${key}',${i})">❌</button></div>`;
       });
       box.innerHTML = html;
     }
-    window.renderMatched = renderMatched;
+    window.renderMatched = renderMatched = renderMatched;
 
     function pinParty(key,idx) { if (!pinnedParties[key]) pinnedParties[key] = [];
       const grp = matchedParties[key].splice(idx,1)[0];
