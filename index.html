@@ -116,26 +116,21 @@
       const box = document.getElementById(`${key}-matched`);
       const pinned = pinnedParties[key] || [];
       const unpinned = matchedParties[key] || [];
-      if (!pinned.length && !unpinned.length) {
-        box.innerHTML = '<p>매칭된 파티 없음</p>';
-        return;
-      }
+      if (!pinned.length && !unpinned.length) { box.innerHTML = '<p>매칭된 파티 없음</p>'; return; }
       let html = '';
-      pinned.forEach((party, i) => {
-        const members = party.map(p =>
-          `<span class="role-${p.role==='딜러'?'dps':p.role==='힐러'?'heal':'tank'}">${p.nickname} (${p.job})</span>` + (p.note ? ` - [${p.note}]` : '')
-        ).join(', ');
+      pinned.forEach((party,i) => {
+        const members = party.map(p=> `<span class="role-${p.role==='딜러'?'dps':p.role==='힐러'?'heal':'tank'}">${p.nickname} (${p.job})</span>` + (p.note?` - [${p.note}]`:''))
+                          .join(', ');
         html += `<div class="party-block fixed"><strong>🔒 고정 파티 ${i+1}</strong>: ${members}<button class="inline-btn" onclick="unpinParty('${key}',${i})">고정해제</button></div>`;
       });
-      unpinned.forEach((party, i) => {
-        const members = party.map(p =>
-          `<span class="role-${p.role==='딜러'?'dps':p.role==='힐러'?'heal':'tank'}">${p.nickname} (${p.job})</span>` + (p.note ? ` - [${p.note}]` : '')
-        ).join(', ');
+      unpinned.forEach((party,i) => {
+        const members = party.map(p=> `<span class="role-${p.role==='딜러'?'dps':p.role==='힐러'?'heal':'tank'}">${p.nickname} (${p.job})</span>` + (p.note?` - [${p.note}]`:''))
+                          .join(', ');
         html += `<div class="party-block"><strong>파티 ${i+1}</strong>: ${members}<button class="inline-btn" onclick="pinParty('${key}',${i})">고정</button><button class="inline-btn" onclick="deleteParty('${key}',${i})">❌</button></div>`;
       });
       box.innerHTML = html;
     }
-    window.renderMatched = renderMatched = renderMatched = renderMatched;
+    window.renderMatched = renderMatched;
 
     function pinParty(key,idx) { if (!pinnedParties[key]) pinnedParties[key] = [];
       const grp = matchedParties[key].splice(idx,1)[0];
@@ -167,35 +162,20 @@
           const newMatched = [];
           while (mems.length >= size) {
             const group = [];
-            const usedNick = new Set();
+            const used = new Set();
             for (const p of mems) {
               if (group.length === size) break;
-              if (!usedNick.has(p.nickname)) {
+              if (!used.has(p.nickname)) {
                 group.push(p);
-                usedNick.add(p.nickname);
-                }
-            }
-            if (group.length < size) break;
-            newMatched.push(group);
-                        mems = mems.filter(p => !usedNick.has(p.nickname));
-          }
+                used.add(p.nickname);
+              }
             }
             if (group.length < size) break;
             newMatched.push(group);
             mems = mems.filter(p => !used.has(p.nickname));
           }
-          // 중복된 그룹(고정 파티와 동일한 멤버)을 제거
-          const finalMatched = newMatched.filter(group => {
-            const groupSet = new Set(group.map(m => m.id));
-            return !( (pinnedParties[key] || []).some(pinnedGrp => {
-              const pinnedSet = new Set(pinnedGrp.map(m => m.id));
-              if (pinnedSet.size !== groupSet.size) return false;
-              for (const pid of pinnedSet) { if (!groupSet.has(pid)) return false; }
-              return true;
-            }) );
-          });
-          matchedParties[key] = finalMatched;
-          return matchedRef.set([...(pinnedParties[key] || []), ...finalMatched]);
+          matchedParties[key] = newMatched;
+          return matchedRef.set([...(pinnedParties[key] || []), ...newMatched]);
         })
         .then(() => partiesRef.once('value'))
         .then(() => Promise.all((matchedParties[key] || []).flat().map(p => db.ref(`parties/${key}/${p.id}`).remove())))
