@@ -160,27 +160,79 @@ function renderMatched(key) {
   }).join('');
 }
 
-function match(key,size) {
-  db.ref(`parties/${key}`).once('value',snap=>{
-    const all = snap.val()||{};
-    let members = Object.values(all);
-    shuffle(members);
-    const isRaid = size===8;
-    const matched = [];
-    while(members.length>=size) {
-      const party=[];
-      const nameSet=new Set();
-      const roles={탱커:members.filter(m=>m.role==='탱커'&&!nameSet.has(m.name)),힐러:members.filter(m=>m.role==='힐러'&&!nameSet.has(m.name))};
-      const counts={탱커:isRaid?2:1,힐러:isRaid?2:1};
-      Object.keys(roles).sort(()=>Math.random()-0.5).forEach(r=>{
-        roles[r].forEach(p=>{
-          if(party.length<size&&counts[r]-->0) { party.push(p); nameSet.add(p.name);}        
+function match(key, size) {
+  // 이전 매칭 결과 복원
+  const prev = (matchedParties[key] || []).flat();
+  const restorePromises = prev.map(p => db.ref(`parties/${key}/${p.id}`).set(p));
+  Promise.all(restorePromises)
+    .then(() => {
+      // 이전 매칭 데이터 클리어
+      matchedParties[key] = [];
+      return db.ref(`matchedParties/${key}`).set([]);
+    })
+    .then(() => {
+      // 현재 신청자 데이터 가져오기
+      return db.ref(`parties/${key}`).once('value');
+    })
+    .then(snap => {
+      const all = snap.val() || {};
+      let members = Object.values(all);
+      shuffle(members);
+      const isRaid = size === 8;
+      const matched = [];
+      while (members.length >= size) {
+        const party = [];
+        const nameSet = new Set();
+        const roles = {
+          탱커: members.filter(m => m.role === '탱커'),
+          힐러: members.filter(m => m.role === '힐러')
+        };
+        const counts = { 탱커: isRaid ? 2 : 1, 힐러: isRaid ? 2 : 1 };
+        // 탱커/힐러 동등 우선순위 섞기
+        Object.keys(roles).sort(() => Math.random() - 0.5).forEach(r => {
+          roles[r].forEach(p => {
+            if (party.length < size && counts[r] > 0) {
+              party.push(p);
+              nameSet.add(p.name);
+              counts[r]--;
+            }
+          });
         });
-      });
-      members.filter(m=>!nameSet.has(m.name)&&m.role==='딜러').forEach(p=>{ if(party.length<size){ party.push(p); nameSet.add(p.name);} });
-      members.filter(m=>!nameSet.has(m.name)&&m.role!=='딜러').sort(()=>Math.random()-0.5).forEach(p=>{ if(party.length<size){ party.push(p); nameSet.add(p.name);} });
-      if(party.length===size){ matched.push(party); members=members.filter(m=>!nameSet.has(m.name)); } else break;
-    }
+        // 딜러 채우기
+        members.filter(m => !nameSet.has(m.name) && m.role === '딜러').forEach(p => {
+          if (party.length < size) {
+            party.push(p);
+            nameSet.add(p.name);
+          }
+        });
+        // 백업 역할 채우기
+        members.filter(m => !nameSet.has(m.name) && m.role !== '딜러')
+               .sort(() => Math.random() - 0.5)
+               .forEach(p => {
+          if (party.length < size) {
+            party.push(p);
+            nameSet.add(p.name);
+          }
+        });
+        if (party.length === size) {
+          matched.push(party);
+          members = members.filter(m => !nameSet.has(m.name));
+        } else {
+          break;
+        }
+      }
+      // 매칭 결과 업데이트
+      matchedParties[key] = matched;
+      return db.ref(`matchedParties/${key}`).set(matched);
+    })
+    .then(() => {
+      renderMatched(key);
+      // 신청자 DB에서 매칭된 멤버 제거
+      const removal = matchedParties[key].flat().map(p => db.ref(`parties/${key}/${p.id}`).remove());
+      return Promise.all(removal);
+    })
+    .catch(err => console.error('매칭 에러:', err));
+}
     // 복원 & 제거
     const prev=(matchedParties[key]||[]).flat();
     const newIds=new Set(matched.flat().map(p=>p.id));
