@@ -73,7 +73,6 @@ function updateDifficultyOptions() {
   if (selected === '어비스') difficultySelect.value = '매우어려움';
 }
 updateDifficultyOptions();
-
 form.addEventListener('submit', e => {
   e.preventDefault();
   const key = `${dungeonSelect.value}_${difficultySelect.value}`;
@@ -83,7 +82,7 @@ form.addEventListener('submit', e => {
   form.reset(); updateDifficultyOptions();
 });
 
-// 배열 셔플 함수 추가
+// shuffle helper
 function shuffle(array) {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -111,7 +110,6 @@ function renderSection(key, fullList) {
     list.appendChild(li);
   });
 }
-
 function removeApplicant(key, id) { db.ref(`parties/${key}/${id}`).remove(); }
 function deleteParty(key, index) { const removed = matchedParties[key].splice(index, 1)[0]; removed.forEach(p => db.ref(`parties/${key}/${p.id}`).set(p)); db.ref(`matchedParties/${key}`).set(matchedParties[key]); }
 
@@ -126,7 +124,7 @@ function match(key, size) {
   db.ref(`parties/${key}`).once('value', snap => {
     const all = snap.val() || {};
     let members = Object.values(all);
-    shuffle(members); // 셔플 적용
+    shuffle(members);
     console.log('shuffled members:', members);
     const isRaid = size === 8;
     const matched = [];
@@ -138,7 +136,6 @@ function match(key, size) {
       const dps = members.filter(m => m.role === '딜러' && !nameSet.has(m.name));
       const tankCount = isRaid ? 2 : 1;
       const healCount = isRaid ? 2 : 1;
-      // 탱커와 힐러 우선순위 동등 처리
       let primaryRoles = [{ arr: tanks, count: tankCount }, { arr: heals, count: healCount }];
       primaryRoles.sort(() => Math.random() - 0.5);
       primaryRoles.forEach(r => {
@@ -163,10 +160,18 @@ function match(key, size) {
     const prev = (matchedParties[key] || []).flat();
     const newIds = new Set(matched.flat().map(m => m.id));
     prev.forEach(p => { if (!newIds.has(p.id)) db.ref(`parties/${key}/${p.id}`).set(p); });
-    matched.flat().forEach(p => db.ref(`parties/${key}/${p.id}`).remove());
-    matchedParties[key] = matched;
-    db.ref(`matchedParties/${key}`).set(matched).then(() => renderMatched(key));
-    db.ref(`parties/${key}`).once('value', s => { const list = s.val() ? Object.entries(s.val()).map(([id, v]) => ({ ...v, id })) : []; renderSection(key, list); });
+    // Remove matched members, then update matchedParties and re-render
+    const removalPromises = matched.flat().map(p => db.ref(`parties/${key}/${p.id}`).remove());
+    Promise.all(removalPromises).then(() => {
+      matchedParties[key] = matched;
+      db.ref(`matchedParties/${key}`).set(matched).then(() => {
+        renderMatched(key);
+        db.ref(`parties/${key}`).once('value', s => {
+          const list = s.val() ? Object.entries(s.val()).map(([id, v]) => ({ ...v, id })) : [];
+          renderSection(key, list);
+        });
+      });
+    });
   });
 }
 
@@ -175,7 +180,7 @@ for (const dungeon in dungeonConfigs) {
   dungeonConfigs[dungeon].difficulties.forEach(diff => {
     const key = `${dungeon}_${diff}`;
     db.ref(`parties/${key}`).on('value', snap => { const list = snap.val() ? Object.entries(snap.val()).map(([id, v]) => ({ ...v, id })) : []; renderSection(key, list); });
-    db.ref(`matchedParties/${key}`).on('value', snap => { matchedParties[key] = snap.val() || []; renderMatched(key); });
+    db.ref(`matchedParties}/${key}`).on('value', snap => { matchedParties[key] = snap.val() || []; renderMatched(key); });
   });
 }
 </script>
