@@ -174,8 +174,18 @@
             newMatched.push(group);
             mems = mems.filter(p => !used.has(p.nickname));
           }
-          matchedParties[key] = newMatched;
-          return matchedRef.set([...(pinnedParties[key] || []), ...newMatched]);
+          // 중복된 그룹(고정 파티와 동일한 멤버)을 제거
+          const finalMatched = newMatched.filter(group => {
+            const groupSet = new Set(group.map(m => m.id));
+            return !( (pinnedParties[key] || []).some(pinnedGrp => {
+              const pinnedSet = new Set(pinnedGrp.map(m => m.id));
+              if (pinnedSet.size !== groupSet.size) return false;
+              for (const pid of pinnedSet) { if (!groupSet.has(pid)) return false; }
+              return true;
+            }) );
+          });
+          matchedParties[key] = finalMatched;
+          return matchedRef.set([...(pinnedParties[key] || []), ...finalMatched]);
         })
         .then(() => partiesRef.once('value'))
         .then(() => Promise.all((matchedParties[key] || []).flat().map(p => db.ref(`parties/${key}/${p.id}`).remove())))
