@@ -91,11 +91,15 @@
     dungeonSelect.addEventListener('change', updateDifficultyOptions);
     updateDifficultyOptions();
 
-    // 배열 셔플
-    function shuffle(arr) {
-      for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]];
-      }
+    // 후보자 정규화 함수 (legacy name 호환)
+    function normalize(v, id) {
+      return {
+        id,
+        nickname: v.nickname !== undefined ? v.nickname : v.name,
+        job: v.job,
+        role: v.role,
+        note: v.note
+      };
     }
 
     // 신청자 추가
@@ -104,7 +108,13 @@
       if (!nicknameInput.value.trim() || !jobInput.value.trim()) return;
       const key = `${dungeonSelect.value}_${difficultySelect.value}`;
       const ref = db.ref(`parties/${key}`).push();
-      const applicant = { nickname: nicknameInput.value.trim(), job: jobInput.value.trim(), role: roleSelect.value, note: noteInput.value.trim(), id: ref.key };
+      const applicant = {
+        nickname: nicknameInput.value.trim(),
+        job: jobInput.value.trim(),
+        role: roleSelect.value,
+        note: noteInput.value.trim(),
+        id: ref.key
+      };
       ref.set(applicant);
       form.reset(); updateDifficultyOptions();
     });
@@ -117,9 +127,11 @@
         sec.innerHTML = `<h2>${key.replace('_', ' - ')} (<span id="${key}-count">0</span>명 신청)</h2><ul id="${key}-list"></ul><div class="match-buttons"><button onclick="match('${key}', ${dungeonConfigs[key.split('_')[0]].partySize})">파티 자동 매칭</button></div><div id="${key}-matched"></div>`;
         sectionsContainer.appendChild(sec);
       }
-      const ul = document.getElementById(`${key}-list`); const cnt = document.getElementById(`${key}-count`);
+      const ul = document.getElementById(`${key}-list`);
+      const cnt = document.getElementById(`${key}-count`);
       const remaining = list.filter(p => !matchedParties[key]?.flat().map(m => m.id).includes(p.id));
-      cnt.textContent = remaining.length; ul.innerHTML = '';
+      cnt.textContent = remaining.length;
+      ul.innerHTML = '';
       remaining.forEach((p, i) => {
         const noteStr = p.note ? ` - [${p.note}]` : '';
         const li = document.createElement('li');
@@ -133,7 +145,8 @@
     window.removeApplicant = removeApplicant;
 
     function renderMatched(key) {
-      const box = document.getElementById(`${key}-matched`); const parts = matchedParties[key] || [];
+      const box = document.getElementById(`${key}-matched`);
+      const parts = matchedParties[key] || [];
       if (!parts.length) return box.innerHTML = '<p>매칭된 파티 없음</p>';
       box.innerHTML = parts.map((party,i) => {
         const membersHtml = party.map(p => {
@@ -158,7 +171,8 @@
       const matchedRef = db.ref(`matchedParties/${key}`);
       matchedRef.set([]).then(() => partiesRef.once('value'))
       .then(snap => {
-        let mems = Object.values(snap.val()||{});
+        // legacy name 필드까지 포함해 normalize
+        let mems = snap.val() ? Object.entries(snap.val()).map(([id,v]) => normalize(v,id)) : [];
         shuffle(mems);
         const isRaid = size===8;
         const reqTank = isRaid?2:1;
@@ -188,12 +202,12 @@
     // 리스너 등록
     Object.keys(dungeonConfigs).forEach(d => dungeonConfigs[d].difficulties.forEach(diff => {
       const key = `${d}_${diff}`;
-      db.ref(`parties/${key}`).on('value',snap=>{
-        const list = snap.val()?Object.entries(snap.val()).map(([id,v])=>({...v,id})):[];
-        renderSection(key,list);
+      db.ref(`parties/${key}`).on('value', snap => {
+        const list = snap.val() ? Object.entries(snap.val()).map(([id,v]) => normalize(v,id)) : [];
+        renderSection(key, list);
       });
-      db.ref(`matchedParties/${key}`).on('value',snap=>{
-        matchedParties[key]=snap.val()||[];
+      db.ref(`matchedParties/${key}`).on('value', snap => {
+        matchedParties[key] = snap.val() || [];
         renderMatched(key);
       });
     }));
