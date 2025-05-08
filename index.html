@@ -135,15 +135,7 @@
         const members = party.map(p =>
           `<span class="role-${p.role==='딜러'?'dps':p.role==='힐러'?'heal':'tank'}">${p.nickname} (${p.job})</span>` + (p.note ? ` - [${p.note}]` : '')
         ).join(', ');
-        html += `<div class="party-block fixed"><strong>🔒 고정 파티 ${i+1}</strong>: ${members}`;
-        // 메모 버튼
-        html += `<button class="inline-btn" onclick="addMemo('${key}',${i})">메모</button>`;
-        // 고정해제 버튼
-        html += `<button class="inline-btn" onclick="unpinParty('${key}',${i})">고정해제</button>`;
-        // 메모 표시 영역
-        const memoText = (pinnedMemos[key] && pinnedMemos[key][i]) ? pinnedMemos[key][i] : '';
-        html += `<div class="memo">${memoText}</div>`;
-        html += `</div>`;
+        html += `<div class="party-block fixed"><strong>🔒 고정 파티 ${i+1}</strong>: ${members}<button class="inline-btn" onclick="unpinParty('${key}',${i})">고정해제</button></div>`;
       });
       // 일반 파티
       unmatched.forEach((party, i) => {
