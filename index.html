@@ -116,26 +116,14 @@
       const box = document.getElementById(`${key}-matched`);
       const pinned = pinnedParties[key] || [];
       const unpinned = matchedParties[key] || [];
-      // 고정 파티와 동일한 그룹 제거
-      const filteredUnpinned = unpinned.filter(party => {
-        return !(pinnedParties[key] || []).some(pinnedGrp => {
-          const pinnedIds = new Set(pinnedGrp.map(m => m.id));
-          const partyIds = new Set(party.map(m => m.id));
-          if (pinnedIds.size !== partyIds.size) return false;
-          for (const id of pinnedIds) if (!partyIds.has(id)) return false;
-          return true;
-        });
-      });
-      // 고정 파티와 동일하지 않은 파티만 매칭 처리
-      $1
-      $2 && !unpinned.length) { box.innerHTML = '<p>매칭된 파티 없음</p>'; return; }
+      if (!pinned.length && !unpinned.length) { box.innerHTML = '<p>매칭된 파티 없음</p>'; return; }
       let html = '';
       pinned.forEach((party,i) => {
         const members = party.map(p=> `<span class="role-${p.role==='딜러'?'dps':p.role==='힐러'?'heal':'tank'}">${p.nickname} (${p.job})</span>` + (p.note?` - [${p.note}]`:''))
                           .join(', ');
         html += `<div class="party-block fixed"><strong>🔒 고정 파티 ${i+1}</strong>: ${members}<button class="inline-btn" onclick="unpinParty('${key}',${i})">고정해제</button></div>`;
       });
-      displayUnpinned.forEach((party,i) => {
+      unpinned.forEach((party,i) => {
         const members = party.map(p=> `<span class="role-${p.role==='딜러'?'dps':p.role==='힐러'?'heal':'tank'}">${p.nickname} (${p.job})</span>` + (p.note?` - [${p.note}]`:''))
                           .join(', ');
         html += `<div class="party-block"><strong>파티 ${i+1}</strong>: ${members}<button class="inline-btn" onclick="pinParty('${key}',${i})">고정</button><button class="inline-btn" onclick="deleteParty('${key}',${i})">❌</button></div>`;
