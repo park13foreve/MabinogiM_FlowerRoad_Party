@@ -201,7 +201,7 @@
             });
           });
           matchedParties[key] = finalMatched;
-          return matchedRef.set([...(pinnedParties[key] || []), ...finalMatched]);
+          return matchedRef.set(finalMatched);
         })
         .then(() => partiesRef.once('value'))
         .then(() => Promise.all((matchedParties[key] || []).flat().map(p => db.ref(`parties/${key}/${p.id}`).remove())))
