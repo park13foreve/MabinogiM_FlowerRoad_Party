@@ -169,8 +169,15 @@ function match(key) {
         members = members.filter(p => !party.includes(p));
       } else break;
     }
-    matched.forEach(party => party.forEach(p => db.ref(`parties/${key}/${p.id}`).remove()));
-    db.ref(`matchedParties/${key}`).set(matched);
+
+    db.ref(`matchedParties/${key}`).once('value', oldSnap => {
+      const existing = oldSnap.val() || [];
+      const updated = existing.concat(matched);
+      matched.forEach(party => party.forEach(p => db.ref(`parties/${key}/${p.id}`).remove()));
+      db.ref(`matchedParties/${key}`).set(updated);
+    });
+  });
+}
   });
 }
 
