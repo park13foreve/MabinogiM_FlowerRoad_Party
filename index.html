@@ -139,8 +139,25 @@ function renderSection(key, fullList) {
       <div class="match-buttons">
         <button onclick="match('${key}', ${dungeonConfigs[key.split('_')[0]].partySize})">파티 자동 매칭</button>
       </div>
-      <div id="${key}-matched"></div>`;
+      <div id="${key}-matched"></div>
+      <div id="${key}-fixed"></div>`;
     sectionsContainer.appendChild(section);
+  }
+
+  const list = document.getElementById(`${key}-list`);
+  const countSpan = document.getElementById(`${key}-count`);
+  const matched = (matchedParties[key] || []).flat();
+  const remaining = fullList.filter(p => !matched.some(m => m.id === p.id));
+  countSpan.innerText = remaining.length;
+  list.innerHTML = '';
+  remaining.forEach((a, idx) => {
+    const specialNote = a.note ? ` - [${a.note}]` : "";
+    const li = document.createElement('li');
+    li.innerHTML = `${idx + 1}. <span class="role-${a.role === '딜러' ? 'dps' : a.role === '힐러' ? 'heal' : 'tank'}">${a.name} (${a.job}) ${a.role}${specialNote}</span>
+      <button class="inline-btn" onclick="removeApplicant('${key}', '${a.id}')">❌</button>`;
+    list.appendChild(li);
+  });
+}
   }
   const list = document.getElementById(`${key}-list`);
   const countSpan = document.getElementById(`${key}-count`);
@@ -204,7 +221,8 @@ function renderFixed(key) {
       <button class=\"inline-btn\" onclick=\"unfixParty('${key}', ${i})\">❌</button>`;
       fixedContainer.appendChild(block);
     });
-    section.insertBefore(fixedContainer, section.children[1]);
+    // 고정 파티를 하단에 위치시킴
+  section.appendChild(fixedContainer);
   });
 }
 
