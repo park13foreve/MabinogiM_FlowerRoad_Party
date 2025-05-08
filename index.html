@@ -8,72 +8,240 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body { font-family: sans-serif; padding: 20px; margin: 0; }
-    form, select, input, button { width: 100%; max-width: 500px; margin: 5px auto; display: block; }
-    .dungeon-section { margin-top: 30px; border-top: 1px solid #ccc; padding-top: 20px; }
-    .role-dps { background-color: #FFD1B3; padding: 2px 5px; border-radius: 4px; }
-    .role-heal { background-color: #C2F0C2; padding: 2px 5px; border-radius: 4px; }
-    .role-tank { background-color: #C2E0FF; padding: 2px 5px; border-radius: 4px; }
-    .party-block { margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
-    ul { padding-left: 20px; }
-    li {
-      margin-bottom: 5px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: nowrap;
-    }
-    .inline-btn {
-      width: 22px;
-      height: 22px;
-      font-size: 12px;
-      line-height: 20px;
-      text-align: center;
-      padding: 0;
-      margin-left: 10px;
-      background: #eee;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    .match-buttons { display: flex; gap: 10px; margin-top: 10px; justify-content: center; flex-wrap: wrap; }
-    .match-buttons button { flex: 1; min-width: 120px; padding: 6px 10px; font-size: 0.9em; }
-    .fixed-party { background-color: #f0f8ff; padding: 10px; margin-top: 10px; border: 1px solid #aaa; border-radius: 6px; }
-    @media screen and (max-width: 600px) {
-      input, select, button { width: 100%; margin: 5px 0; }
-      .match-buttons { flex-direction: column; }
-    }
+    main { max-width: 800px; margin: auto; }
+    form, select, input, button { width: 100%; margin: 5px 0; padding: 8px; box-sizing: border-box; }
+    .section { margin-top: 40px; }
+    .party { border: 1px solid #ccc; border-radius: 6px; padding: 10px; margin: 10px 0; background: #f9f9f9; }
+    .role { display: inline-block; margin-right: 6px; padding: 2px 6px; border-radius: 4px; }
+    .딜러 { background-color: #FFD1B3; }
+    .힐러 { background-color: #C2F0C2; }
+    .탱커 { background-color: #C2E0FF; }
+    .button-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+    .inline-btn { font-size: 12px; padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; background: #eee; }
+    .fixed { background-color: #e6f3ff; }
   </style>
 </head>
 <body>
-<h1 style="text-align:center">마비노기 꽃길 길드팟</h1>
-<form id="partyForm">
-  <label>던전:</label>
-  <select id="dungeon">
-    <option value="어비스">어비스</option>
-    <option value="레이드">레이드</option>
-  </select>
-  <label>난이도:</label>
-  <select id="difficulty"></select>
-  <label>닉네임:</label>
-  <input type="text" id="name" required>
-  <label>직업:</label>
-  <input type="text" id="job" required>
-  <label>역할:</label>
-  <select id="role">
-    <option value="딜러">딜러</option>
-    <option value="힐러">힐러</option>
-    <option value="탱커">탱커</option>
-  </select>
-  <label>특이사항 (선택):</label>
-  <input type="text" id="note" placeholder="없으면 비워두세요">
-  <button type="submit">신청</button>
-</form>
-<div id="dungeonSections"></div>
+<main>
+  <h1 style="text-align:center">마비노기 꽃길 길드팟</h1>
+  <form id="partyForm">
+    <label>던전</label>
+    <select id="dungeon">
+      <option value="어비스">어비스</option>
+      <option value="레이드">레이드</option>
+    </select>
+    <label>난이도</label>
+    <select id="difficulty"></select>
+    <label>닉네임</label>
+    <input type="text" id="name" required>
+    <label>직업</label>
+    <input type="text" id="job" required>
+    <label>역할</label>
+    <select id="role">
+      <option value="딜러">딜러</option>
+      <option value="힐러">힐러</option>
+      <option value="탱커">탱커</option>
+    </select>
+    <label>특이사항 (선택)</label>
+    <input type="text" id="note">
+    <button type="submit">신청</button>
+  </form>
+  <div id="content"></div>
+</main>
 <script>
-// Firebase 설정 및 초기화 생략 (기존 유지)
-// 모든 기능은 최적화된 버전으로 renderSection, match, renderMatched, renderFixed 포함됨
+const firebaseConfig = {
+  apiKey: "AIzaSyColXLlJbXM6x97A4j1ME8QWNKTheAccFM",
+  authDomain: "mabinogim-flowerroad-party.firebaseapp.com",
+  databaseURL: "https://mabinogim-flowerroad-party-default-rtdb.firebaseio.com",
+  projectId: "mabinogim-flowerroad-party",
+  storageBucket: "mabinogim-flowerroad-party.appspot.com",
+  messagingSenderId: "1051963693734",
+  appId: "1:1051963693734:web:c264607ec4ecf562147267"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-// 개선된 구조를 기반으로 전체 스크립트 블록이 이어짐...
+const dungeonConfigs = {
+  '어비스': { difficulties: ['입문', '어려움', '매우어려움'], partySize: 4 },
+  '레이드': { difficulties: ['입문'], partySize: 8 }
+};
+
+const form = document.getElementById('partyForm');
+const dungeonSelect = document.getElementById('dungeon');
+const difficultySelect = document.getElementById('difficulty');
+const contentDiv = document.getElementById('content');
+
+function updateDifficulties() {
+  const diffs = dungeonConfigs[dungeonSelect.value].difficulties;
+  difficultySelect.innerHTML = diffs.map(d => `<option value="${d}">${d}</option>`).join('');
+  if (dungeonSelect.value === '어비스') difficultySelect.value = '매우어려움';
+}
+dungeonSelect.addEventListener('change', updateDifficulties);
+updateDifficulties();
+
+form.addEventListener('submit', e => {
+  e.preventDefault();
+  const key = `${dungeonSelect.value}_${difficultySelect.value}`;
+  const ref = db.ref(`parties/${key}`);
+  const newRef = ref.push();
+  newRef.set({
+    name: form.name.value,
+    job: form.job.value,
+    role: form.role.value,
+    note: form.note.value,
+    id: newRef.key
+  });
+  form.reset();
+  updateDifficulties();
+});
+
+function renderAll() {
+  contentDiv.innerHTML = '';
+  for (const dungeon in dungeonConfigs) {
+    for (const diff of dungeonConfigs[dungeon].difficulties) {
+      const key = `${dungeon}_${diff}`;
+      db.ref(`parties/${key}`).on('value', snap => {
+        const data = snap.val() || {};
+        const applicants = Object.values(data);
+        renderSection(key, applicants);
+      });
+      db.ref(`matchedParties/${key}`).on('value', snap => {
+        renderMatched(key, snap.val() || []);
+      });
+      db.ref(`fixedParties/${key}`).on('value', snap => {
+        renderFixed(key, snap.val() || []);
+      });
+    }
+  }
+}
+
+function renderSection(key, list) {
+  let section = document.getElementById(key);
+  if (!section) {
+    section = document.createElement('div');
+    section.id = key;
+    section.className = 'section';
+    section.innerHTML = `<h2>${key.replace('_', ' - ')} <span id="${key}-count"></span></h2>
+      <div id="${key}-applicants"></div>
+      <div class="button-row"><button onclick="match('${key}')">파티 자동 매칭</button></div>
+      <div id="${key}-matched"></div>
+      <div id="${key}-fixed"></div>`;
+    contentDiv.appendChild(section);
+  }
+  const appDiv = document.getElementById(`${key}-applicants`);
+  appDiv.innerHTML = '';
+  list.forEach((a, i) => {
+    const div = document.createElement('div');
+    div.innerHTML = `${i + 1}. <span class="role ${a.role}">${a.name} (${a.job})</span>${a.note ? ` - [${a.note}]` : ''}`;
+    const btn = document.createElement('button');
+    btn.className = 'inline-btn';
+    btn.innerText = '❌';
+    btn.onclick = () => db.ref(`parties/${key}/${a.id}`).remove();
+    div.appendChild(btn);
+    appDiv.appendChild(div);
+  });
+  document.getElementById(`${key}-count`).textContent = `(${list.length}명 신청)`;
+}
+
+function match(key) {
+  const size = dungeonConfigs[key.split('_')[0]].partySize;
+  db.ref(`parties/${key}`).once('value', snap => {
+    let members = Object.values(snap.val() || {});
+    const matched = [];
+    while (members.length >= size) {
+      const party = [];
+      const nameSet = new Set();
+      const byRole = r => members.filter(p => p.role === r && !nameSet.has(p.name));
+      const pushRole = (arr, count) => {
+        for (const p of arr) {
+          if (!nameSet.has(p.name) && party.length < size) {
+            party.push(p);
+            nameSet.add(p.name);
+            if (--count === 0) break;
+          }
+        }
+      };
+      pushRole(byRole('탱커'), size >= 8 ? 2 : 1);
+      pushRole(byRole('힐러'), size >= 8 ? 2 : 1);
+      pushRole(byRole('딜러'), size - party.length);
+      if (party.length === size) {
+        matched.push(party);
+        members = members.filter(p => !party.includes(p));
+      } else break;
+    }
+    matched.forEach(party => party.forEach(p => db.ref(`parties/${key}/${p.id}`).remove()));
+    db.ref(`matchedParties/${key}`).set(matched);
+  });
+}
+
+function renderMatched(key, data) {
+  const div = document.getElementById(`${key}-matched`);
+  div.innerHTML = data.map((party, i) => {
+    const members = party.map(p => `<span class="role ${p.role}">${p.name} (${p.job})</span>${p.note ? ` - ${p.note}` : ''}`).join(', ');
+    return `<div class="party"><strong>파티 ${i + 1}</strong>: ${members}
+      <div class="button-row">
+        <button class="inline-btn" onclick="fixParty('${key}', ${i})">📌 고정</button>
+        <button class="inline-btn" onclick="deleteParty('${key}', ${i})">❌ 삭제</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function deleteParty(key, index) {
+  db.ref(`matchedParties/${key}`).once('value', snap => {
+    const all = snap.val() || [];
+    const removed = all.splice(index, 1)[0];
+    removed.forEach(p => db.ref(`parties/${key}/${p.id}`).set(p));
+    db.ref(`matchedParties/${key}`).set(all);
+  });
+}
+
+function fixParty(key, index) {
+  const memo = prompt("파티 메모를 입력하세요:");
+  db.ref(`matchedParties/${key}`).once('value', snap => {
+    const all = snap.val() || [];
+    const fixed = all.splice(index, 1)[0];
+    db.ref(`matchedParties/${key}`).set(all);
+    db.ref(`fixedParties/${key}`).once('value', s => {
+      const list = s.val() || [];
+      list.push({ members: fixed, memo });
+      db.ref(`fixedParties/${key}`).set(list);
+    });
+  });
+}
+
+function renderFixed(key, data) {
+  const div = document.getElementById(`${key}-fixed`);
+  div.innerHTML = data.map((entry, i) => {
+    const members = entry.members.map(p => `<span class="role ${p.role}">${p.name} (${p.job})</span>${p.note ? ` - ${p.note}` : ''}`).join(', ');
+    return `<div class="party fixed"><strong>고정 ${i + 1}</strong>: ${members}<br>📝 메모: ${entry.memo || ''}
+      <div class="button-row">
+        <button class="inline-btn" onclick="editMemo('${key}', ${i})">✏ 수정</button>
+        <button class="inline-btn" onclick="unfixParty('${key}', ${i})">❌ 해제</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function unfixParty(key, index) {
+  db.ref(`fixedParties/${key}`).once('value', snap => {
+    const all = snap.val() || [];
+    const removed = all.splice(index, 1)[0];
+    removed.members.forEach(p => db.ref(`parties/${key}/${p.id}`).set(p));
+    db.ref(`fixedParties/${key}`).set(all);
+  });
+}
+
+function editMemo(key, index) {
+  const newMemo = prompt("새 메모를 입력하세요:");
+  db.ref(`fixedParties/${key}`).once('value', snap => {
+    const list = snap.val() || [];
+    list[index].memo = newMemo;
+    db.ref(`fixedParties/${key}`).set(list);
+  });
+}
+
+renderAll();
 </script>
 </body>
 </html>
