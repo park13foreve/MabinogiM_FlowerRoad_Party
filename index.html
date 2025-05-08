@@ -3,7 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <title>마비노기 꽃길 길드팟</title>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js">function updatePinnedMemo(key, idx, value) {
+      if (pinnedParties[key] && pinnedParties[key][idx]) {
+        pinnedParties[key][idx].memo = value;
+        db.ref(`matchedParties/${key}`).set(pinnedParties[key].concat(matchedParties[key] || []));
+      }
+    }
+    window.updatePinnedMemo = updatePinnedMemo;
+</script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
@@ -115,7 +122,7 @@
     function renderMatched(key) {
       const box = document.getElementById(`${key}-matched`);
       const pinned = pinnedParties[key] || [];
-      // renderMatched only groups: pinned + unmatched (deduped against pinned)
+      // 수정된 구조 처리
       let unmatched = (matchedParties[key] || []).filter(group => {
         return !pinned.some(pinnedGrp => {
           const pinnedIds = new Set(pinnedGrp.map(m => m.id));
@@ -130,14 +137,17 @@
         return;
       }
       let html = '';
-      // 고정 파티
       pinned.forEach((party, i) => {
-        const members = party.map(p =>
+        const members = (party.members || party).map(p =>
           `<span class="role-${p.role==='딜러'?'dps':p.role==='힐러'?'heal':'tank'}">${p.nickname} (${p.job})</span>` + (p.note ? ` - [${p.note}]` : '')
         ).join(', ');
-        html += `<div class="party-block fixed"><strong>🔒 고정 파티 ${i+1}</strong>: ${members}<button class="inline-btn" onclick="unpinParty('${key}',${i})">고정해제</button></div>`;
+        const memo = party.memo || "";
+        html += `<div class="party-block fixed">
+          <strong>🔒 고정 파티 ${i+1}</strong>: ${members}<br>
+          <input type="text" value="${memo}" placeholder="파티 메모" onchange="updatePinnedMemo('${key}', ${i}, this.value)" style="width: 100%; margin-top: 4px;">
+          <button class="inline-btn" onclick="unpinParty('${key}',${i})">고정해제</button>
+        </div>`;
       });
-      // 일반 파티
       unmatched.forEach((party, i) => {
         const members = party.map(p =>
           `<span class="role-${p.role==='딜러'?'dps':p.role==='힐러'?'heal':'tank'}">${p.nickname} (${p.job})</span>` + (p.note ? ` - [${p.note}]` : '')
@@ -148,15 +158,18 @@
     }
     window.renderMatched = renderMatched = renderMatched;
 
-    function pinParty(key,idx) { if (!pinnedParties[key]) pinnedParties[key] = [];
-      const grp = matchedParties[key].splice(idx,1)[0];
-      pinnedParties[key].push(grp);
-      db.ref(`matchedParties/${key}`).set([...pinnedParties[key], ...matchedParties[key]]);
+    function pinParty(key, idx) {
+      if (!pinnedParties[key]) pinnedParties[key] = [];
+      const grp = matchedParties[key].splice(idx, 1)[0];
+      pinnedParties[key].push({ members: grp, memo: "" });
+      db.ref(`matchedParties/${key}`).set(pinnedParties[key].concat(matchedParties[key]));
       renderMatched(key);
     } window.pinParty = pinParty;
 
-    function unpinParty(key,idx) { const grp = pinnedParties[key].splice(idx,1)[0]; matchedParties[key].unshift(grp);
-      db.ref(`matchedParties/${key}`).set([...pinnedParties[key], ...matchedParties[key]]);
+    function unpinParty(key, idx) {
+      const grp = pinnedParties[key].splice(idx, 1)[0].members || [];
+      matchedParties[key].unshift(grp);
+      db.ref(`matchedParties/${key}`).set(pinnedParties[key].concat(matchedParties[key]));
       renderMatched(key);
     } window.unpinParty = unpinParty;
 
@@ -190,7 +203,6 @@
             newMatched.push(group);
             mems = mems.filter(p => !used.has(p.nickname));
           }
-          // 고정 파티와 동일한 그룹 제거
           const finalMatched = newMatched.filter(group => {
             const groupIds = new Set(group.map(m => m.id));
             return !(pinnedParties[key] || []).some(pinnedGrp => {
@@ -221,6 +233,6 @@
         renderMatched(k);
       });
     }));
-  </script>
+</script>
 </body>
 </html>
