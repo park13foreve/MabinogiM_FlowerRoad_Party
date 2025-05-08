@@ -119,26 +119,82 @@ function renderMatched(key) {
 }
 
 function match(key, size) {
+  // 이전 매칭 결과 복원
+  const prev = (matchedParties[key] || []).flat();
+  // Firebase로부터 현재 신청자 가져오기
   db.ref(`parties/${key}`).once('value', snap => {
-    let members = Object.values(snap.val() || {});
+    const all = snap.val() || {};
+    let members = Object.values(all);
     shuffle(members);
     const isRaid = size === 8;
     const matched = [];
+
+    // 파티 구성
     while (members.length >= size) {
       const party = [];
       const nameSet = new Set();
+      // 역할별 풀
       const roles = {
-        탱커: members.filter(m => m.role==='탱커' && !nameSet.has(m.name)),
-        힐러: members.filter(m => m.role==='힐러' && !nameSet.has(m.name))
+        탱커: members.filter(m => m.role === '탱커' && !nameSet.has(m.name)),
+        힐러: members.filter(m => m.role === '힐러' && !nameSet.has(m.name))
       };
-      const counts = { 탱커: isRaid?2:1, 힐러: isRaid?2:1 };
-      // 탱커/힐러 동등 우선순위: shuffle order
-      const primaries = Object.keys(roles).sort(() => Math.random()-0.5);
+      const counts = { 탱커: isRaid ? 2 : 1, 힐러: isRaid ? 2 : 1 };
+      // 탱커/힐러 동등 우선순위
+      const primaries = Object.keys(roles).sort(() => Math.random() - 0.5);
       primaries.forEach(role => {
         for (const p of roles[role]) {
-          if (party.length < size && !nameSet.has(p.name) && counts[role]-->0) {
-            party.push(p); nameSet.add(p.name);
+          if (party.length < size && counts[role] > 0) {
+            party.push(p);
+            nameSet.add(p.name);
+            counts[role]--;
           }
+        }
+      });
+      // DPS 채우기
+      const rest = members.filter(m => !nameSet.has(m.name));
+      rest.filter(m => m.role === '딜러').forEach(p => {
+        if (party.length < size) {
+          party.push(p);
+          nameSet.add(p.name);
+        }
+      });
+      // 백업 멤버 채우기
+      if (party.length < size) {
+        rest.filter(m => m.role !== '딜러').sort(() => Math.random() - 0.5).forEach(p => {
+          if (party.length < size) {
+            party.push(p);
+            nameSet.add(p.name);
+          }
+        });
+      }
+      if (party.length === size) {
+        matched.push(party);
+        // 남은 멤버 업데이트
+        members = members.filter(m => !nameSet.has(m.name));
+      } else {
+        break;
+      }
+    }
+
+    // 새로운 매칭된 아이디 세트
+    const newIds = new Set(matched.flat().map(m => m.id));
+
+    // 이전 매칭 멤버 중 신규 매칭에 없는 멤버 복원
+    prev.forEach(p => {
+      if (!newIds.has(p.id)) {
+        db.ref(`parties/${key}/${p.id}`).set(p);
+      }
+    });
+
+    // matchedParties 및 DB 갱신
+    matchedParties[key] = matched;
+    db.ref(`matchedParties/${key}`).set(matched).then(() => {
+      renderMatched(key);
+      // 신청자 목록에서 매칭된 멤버 제거
+      matched.flat().forEach(p => db.ref(`parties/${key}/${p.id}`).remove());
+    });
+  });
+}
         }
       });
       // DPS & backup
