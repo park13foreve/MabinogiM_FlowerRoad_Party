@@ -171,7 +171,14 @@
     window.renderMatched = renderMatched;
 
     function pinParty(key,idx){ if (!pinnedParties[key]) pinnedParties[key]=[]; const grp=matchedParties[key].splice(idx,1)[0]; pinnedParties[key].push(grp); db.ref(`matchedParties/${key}`).set([...pinnedParties[key],...matchedParties[key]]); renderMatched(key);} window.pinParty=pinParty;
-    function unpinParty(key,idx){ const grp=pinnedParties[key].splice(idx,1)[0]; matchedParties[key].unshift(grp); db.ref(`matchedParties/${key}`).set([...pinnedParties[key],...matchedParties[key]]); renderMatched(key);} window.unpinParty=unpinParty;
+    function unpinParty(key,idx) {
+      // 고정 해제 시 메모도 제거
+      if (pinnedMemos[key]) pinnedMemos[key].splice(idx, 1);
+      const grp = pinnedParties[key].splice(idx,1)[0];
+      matchedParties[key].unshift(grp);
+      db.ref(`matchedParties/${key}`).set([...pinnedParties[key], ...matchedParties[key]]);
+      renderMatched(key);
+    }`).set([...pinnedParties[key],...matchedParties[key]]); renderMatched(key);} window.unpinParty=unpinParty;
     function deleteParty(key,idx){ const p=matchedParties[key].splice(idx,1)[0]; p.forEach(m=>db.ref(`parties/${key}/${m.id}`).set(m)); db.ref(`matchedParties/${key}`).set([...pinnedParties[key],...matchedParties[key]]); renderMatched(key);} window.deleteParty=deleteParty;
 
     function match(key,size){ const partiesRef=db.ref(`parties/${key}`), matchedRef=db.ref(`matchedParties/${key}`); if(matchedParties[key]) matchedParties[key].flat().forEach(m=>db.ref(`parties/${key}/${m.id}`).set(m)); matchedRef.set([])
