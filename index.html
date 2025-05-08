@@ -162,21 +162,13 @@
           const newMatched = [];
           while (mems.length >= size) {
             const group = [];
-            const usedNick = new Set();
-            const selectedIds = new Set();
+            const used = new Set();
             for (const p of mems) {
               if (group.length === size) break;
-              if (!usedNick.has(p.nickname)) {
+              if (!used.has(p.nickname)) {
                 group.push(p);
-                usedNick.add(p.nickname);
-                selectedIds.add(p.id);
+                used.add(p.nickname);
               }
-            }
-            if (group.length < size) break;
-            newMatched.push(group);
-            // 선택된 ID만 제거 (동일 닉네임은 다른 파티로 매칭 가능)
-            mems = mems.filter(p => !selectedIds.has(p.id));
-          }
             }
             if (group.length < size) break;
             newMatched.push(group);
