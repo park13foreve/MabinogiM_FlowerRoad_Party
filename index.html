@@ -116,6 +116,16 @@
       const box = document.getElementById(`${key}-matched`);
       const pinned = pinnedParties[key] || [];
       const unpinned = matchedParties[key] || [];
+      // 고정 파티와 동일한 그룹 제거
+      const filteredUnpinned = unpinned.filter(party => {
+        return !(pinnedParties[key] || []).some(pinnedGrp => {
+          const pinnedIds = new Set(pinnedGrp.map(m=>m.id));
+          const partyIds = new Set(party.map(m=>m.id));
+          if(pinnedIds.size !== partyIds.size) return false;
+          for(const id of pinnedIds) if(!partyIds.has(id)) return false;
+          return true;
+        });
+      });
       if (!pinned.length && !unpinned.length) { box.innerHTML = '<p>매칭된 파티 없음</p>'; return; }
       let html = '';
       pinned.forEach((party,i) => {
