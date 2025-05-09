@@ -97,7 +97,9 @@
       const ul = document.getElementById(`${key}-list`), cnt = document.getElementById(`${key}-count`);
       const excludedIds = new Set((pinnedParties[key]||[]).flatMap(obj => obj.members).map(m => m.id));
       const remaining = list.filter(p => !excludedIds.has(p.id));
-      cnt.textContent = remaining.length;
+      // 같은 닉네임은 한 명으로 계산하도록
+      const uniqueCount = new Set(remaining.map(p => p.nickname)).size;
+      cnt.textContent = uniqueCount;
       ul.innerHTML = '';
       remaining.forEach((p,i) => {
         const noteStr = p.note ? ` - [${p.note}]` : '';
