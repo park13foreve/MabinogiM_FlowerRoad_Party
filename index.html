@@ -3,32 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <title>마비노기 꽃길 길드팟</title>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js">
-function updatePartyMemo(key, index, memo) {
-  const ref = db.ref(`pinnedParties/${key}`);
-  ref.once('value').then(snap => {
-    const data = snap.val() || [];
-    if (!data[index]) return;
-    data[index].memo = memo;
-    ref.set(data);
-  });
-}
-window.updatePartyMemo = updatePartyMemo;
-
-</script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js">
-function updatePartyMemo(key, index, memo) {
-  const ref = db.ref(`pinnedParties/${key}`);
-  ref.once('value').then(snap => {
-    const data = snap.val() || [];
-    if (!data[index]) return;
-    data[index].memo = memo;
-    ref.set(data);
-  });
-}
-window.updatePartyMemo = updatePartyMemo;
-
-</script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body { font-family: sans-serif; padding: 20px; margin: 0; }
@@ -156,11 +132,10 @@ window.updatePartyMemo = updatePartyMemo;
       let html = '';
       // 고정 파티
       pinned.forEach((party, i) => {
-        const memo = party.memo || ""; const members = party.map(p =>
+        const members = party.map(p =>
           `<span class="role-${p.role==='딜러'?'dps':p.role==='힐러'?'heal':'tank'}">${p.nickname} (${p.job})</span>` + (p.note ? ` - [${p.note}]` : '')
         ).join(', ');
-
-        html += `.replace('</strong>', `</strong> - <em>${memo}</em>`) + ` <input type="text" value="${memo}" onchange="updatePartyMemo('${key}', ${i}, this.value)" placeholder="약속시간" style="max-width: 150px;">` +<div class="party-block fixed"><strong>🔒 고정 파티 ${i+1}</strong>: ${members}<button class="inline-btn" onclick="unpinParty('${key}',${i})">고정해제</button></div>`;
+        html += `<div class="party-block fixed"><strong>🔒 고정 파티 ${i+1}</strong>: ${members}<button class="inline-btn" onclick="unpinParty('${key}',${i})">고정해제</button></div>`;
       });
       // 일반 파티
       unmatched.forEach((party, i) => {
@@ -270,18 +245,6 @@ function unpinParty(key,idx) {
   renderMatched(key);
 }
 window.unpinParty = unpinParty;
-  
-function updatePartyMemo(key, index, memo) {
-  const ref = db.ref(`pinnedParties/${key}`);
-  ref.once('value').then(snap => {
-    const data = snap.val() || [];
-    if (!data[index]) return;
-    data[index].memo = memo;
-    ref.set(data);
-  });
-}
-window.updatePartyMemo = updatePartyMemo;
-
-</script>
+  </script>
 </body>
 </html>
