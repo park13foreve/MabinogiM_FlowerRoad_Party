@@ -156,9 +156,11 @@ window.updatePartyMemo = updatePartyMemo;
       let html = '';
       // 고정 파티
       pinned.forEach((party, i) => {
-        const memo = party.memo || ""; const members = party.members.map(p => `<span class="role-${p.role==='딜러'?'dps':p.role==='힐러'?'heal':'tank'}">${p.nickname} (${p.job})</span>` + (p.note ? ` - [${p.note}]` : '')).join(', ');
+        const memo = party.memo || ""; const members = party.map(p =>
+          `<span class="role-${p.role==='딜러'?'dps':p.role==='힐러'?'heal':'tank'}">${p.nickname} (${p.job})</span>` + (p.note ? ` - [${p.note}]` : '')
+        ).join(', ');
 
-        html += `.replace('</strong>', `</strong> - <em>${memo}</em>`) + ` <input type="text" value="${memo}" onchange="updatePartyMemo('${key}', ${i}, this.value)" placeholder="약속시간 메모" style="max-width: 150px;">` +<div class="party-block fixed"><strong>🔒 고정 파티 ${i+1}</strong>: ${members}<button class="inline-btn" onclick="unpinParty('${key}',${i})">고정해제</button></div>`;
+        html += `.replace('</strong>', `</strong> - <em>${memo}</em>`) + ` <input type="text" value="${memo}" onchange="updatePartyMemo('${key}', ${i}, this.value)" placeholder="약속시간" style="max-width: 150px;">` +<div class="party-block fixed"><strong>🔒 고정 파티 ${i+1}</strong>: ${members}<button class="inline-btn" onclick="unpinParty('${key}',${i})">고정해제</button></div>`;
       });
       // 일반 파티
       unmatched.forEach((party, i) => {
@@ -173,13 +175,12 @@ window.updatePartyMemo = updatePartyMemo;
 
     function pinParty(key,idx) { if (!pinnedParties[key]) pinnedParties[key] = [];
       const grp = matchedParties[key].splice(idx,1)[0];
-  pinnedParties[key].push({ memo: '', members: grp });
+      pinnedParties[key].push(grp);
       db.ref(`matchedParties/${key}`).set([...pinnedParties[key], ...matchedParties[key]]);
       renderMatched(key);
     } window.pinParty = pinParty;
 
-    function unpinParty(key,idx) { const grp = pinnedParties[key].splice(idx,1)[0].members;
-  matchedParties[key].unshift(grp);
+    function unpinParty(key,idx) { const grp = pinnedParties[key].splice(idx,1)[0]; matchedParties[key].unshift(grp);
       db.ref(`matchedParties/${key}`).set([...pinnedParties[key], ...matchedParties[key]]);
       renderMatched(key);
     } window.unpinParty = unpinParty;
@@ -254,7 +255,7 @@ Object.keys(dungeonConfigs).forEach(d => dungeonConfigs[d].difficulties.forEach(
 function pinParty(key,idx) {
   if (!pinnedParties[key]) pinnedParties[key] = [];
   const grp = matchedParties[key].splice(idx,1)[0];
-  pinnedParties[key].push({ memo: '', members: grp });
+  pinnedParties[key].push(grp);
   db.ref(`matchedParties/${key}`).set([...pinnedParties[key], ...matchedParties[key]]);
   db.ref(`pinnedParties/${key}`).set(pinnedParties[key]);
   renderMatched(key);
@@ -262,7 +263,7 @@ function pinParty(key,idx) {
 window.pinParty = pinParty;
 
 function unpinParty(key,idx) {
-  const grp = pinnedParties[key].splice(idx,1)[0].members;
+  const grp = pinnedParties[key].splice(idx,1)[0];
   matchedParties[key].unshift(grp);
   db.ref(`matchedParties/${key}`).set([...pinnedParties[key], ...matchedParties[key]]);
   db.ref(`pinnedParties/${key}`).set(pinnedParties[key]);
