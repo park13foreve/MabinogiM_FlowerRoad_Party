@@ -75,11 +75,7 @@
     form.addEventListener('submit', e => {
       e.preventDefault();
       const key = `${dungeonSelect.value}_${difficultySelect.value}`;
-      const pinned = (pinnedParties[key] || []).flatMap(obj => obj.members);
-      if (pinned.some(m => m.nickname === nicknameInput.value.trim())) {
-        alert('고정된 파티 멤버는 다시 신청할 수 없습니다.');
-        return;
-      }
+      // 고정된 파티 멤버도 재신청 가능하도록 기존 체크 제거
       if (!nicknameInput.value.trim() || !jobInput.value.trim()) return;
       const ref = db.ref(`parties/${key}`).push();
       ref.set({ nickname: nicknameInput.value.trim(), job: jobInput.value.trim(), role: roleSelect.value, note: noteInput.value.trim(), id: ref.key });
