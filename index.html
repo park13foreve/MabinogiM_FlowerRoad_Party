@@ -210,17 +210,41 @@
     }
     window.match = match;
 
-    Object.keys(dungeonConfigs).forEach(d => dungeonConfigs[d].difficulties.forEach(diff => {
-      const k = `${d}_${diff}`;
-      db.ref(`parties/${k}`).on('value', snap => {
-        const list = snap.val() ? Object.entries(snap.val()).map(([id,v]) => normalize(v,id)) : [];
-        renderSection(k, list);
-      });
-      db.ref(`matchedParties/${k}`).on('value', snap => {
-        matchedParties[k] = snap.val() || [];
-        renderMatched(k);
-      });
-    }));
+    // pinnedParties를 Firebase에서 로드
+Object.keys(dungeonConfigs).forEach(d => dungeonConfigs[d].difficulties.forEach(diff => {
+  const k = `${d}_${diff}`;
+  db.ref(`parties/${k}`).on('value', snap => {
+    const list = snap.val() ? Object.entries(snap.val()).map(([id,v]) => normalize(v,id)) : [];
+    renderSection(k, list);
+  });
+  db.ref(`matchedParties/${k}`).on('value', snap => {
+    matchedParties[k] = snap.val() || [];
+    renderMatched(k);
+  });
+  db.ref(`pinnedParties/${k}`).on('value', snap => {
+    pinnedParties[k] = snap.val() || [];
+    renderMatched(k);
+  });
+}));
+
+function pinParty(key,idx) {
+  if (!pinnedParties[key]) pinnedParties[key] = [];
+  const grp = matchedParties[key].splice(idx,1)[0];
+  pinnedParties[key].push(grp);
+  db.ref(`matchedParties/${key}`).set([...pinnedParties[key], ...matchedParties[key]]);
+  db.ref(`pinnedParties/${key}`).set(pinnedParties[key]);
+  renderMatched(key);
+}
+window.pinParty = pinParty;
+
+function unpinParty(key,idx) {
+  const grp = pinnedParties[key].splice(idx,1)[0];
+  matchedParties[key].unshift(grp);
+  db.ref(`matchedParties/${key}`).set([...pinnedParties[key], ...matchedParties[key]]);
+  db.ref(`pinnedParties/${key}`).set(pinnedParties[key]);
+  renderMatched(key);
+}
+window.unpinParty = unpinParty;
   </script>
 </body>
 </html>
