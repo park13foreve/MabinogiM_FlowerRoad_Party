@@ -133,8 +133,7 @@
       // 고정 파티
       pinned.forEach((party, i) => {
         const members = party.map(p =>
-          `<span class="role-${p.role==='딜러'?'dps':p.role==='힐러'?'heal':'tank'}">${p.nickname} (${p.job})</span>` + (p.note ? ` - [${p.note}]` : '')
-        ).join(', ');
+          `<span class="role-${p.role==='딜러'?'dps':p.role==='힐러'?'heal':'tank'}">${p.nickname} (${p.job})</span>` + (p.note ? ` - [${p.note}]` : '');
         html += `<div class="party-block fixed"><strong>🔒 고정 파티 ${i+1}</strong>: ${members}<button class="inline-btn" onclick="unpinParty('${key}',${i})">고정해제</button></div>`;
       });
       // 일반 파티
