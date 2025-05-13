@@ -134,7 +134,7 @@
         html += `<div class="party-block fixed"><strong>🔒 고정 파티 ${i+1}</strong>: ${members}` +
                 `<input id="${key}-memo-${i}" type="text" value="${memo}" placeholder="약속시간" class="inline-input"/>` +
                 `<button class="inline-btn" onclick="saveMemo('${key}',${i})">저장</button>` +
-                `<button class="inline-btn" onclick="unpinParty('${key}',${i})">고정해제</button></div>`;
+                `<button class="inline-btn" onclick="unpinParty('${key}',${i})">고정해제</button><button class="inline-btn" onclick="deletePinnedParty('${key}',${i})">완전삭제</button></div>`;
       });
       unmatched.forEach((party, i) => {
         const members = party.map(p => `<span class="role-${p.role==='딜러'?'dps':p.role==='힐러'?'heal':'tank'}">${p.nickname} (${p.job})</span>` + (p.note ? ` - [${p.note}]` : '')).join(', ');
@@ -174,6 +174,14 @@
       renderMatched(key);
     }
     window.unpinParty = unpinParty;
+
+    // 완전삭제: 고정 파티를 삭제하고 신청자 리스트로 복귀하지 않음
+    function deletePinnedParty(key, idx) {
+      pinnedParties[key].splice(idx, 1);
+      db.ref(`pinnedParties/${key}`).set(pinnedParties[key]);
+      renderMatched(key);
+    }
+    window.deletePinnedParty = deletePinnedParty;
 
     function deleteParty(key,idx) {
       const p = matchedParties[key].splice(idx,1)[0];
