@@ -39,6 +39,16 @@
     <select id="role"><option value="딜러">딜러</option><option value="힐러">힐러</option><option value="탱커">탱커</option></select>
     <label>전투력/가능시간 (선택):</label>
     <input type="text" id="note" placeholder="없으면 비워두세요">
+    <label>희망 요일:</label>
+    <div id="weekday-checkboxes">
+      <label><input type="checkbox" name="days" value="월">월</label>
+      <label><input type="checkbox" name="days" value="화">화</label>
+      <label><input type="checkbox" name="days" value="수">수</label>
+      <label><input type="checkbox" name="days" value="목">목</label>
+      <label><input type="checkbox" name="days" value="금">금</label>
+      <label><input type="checkbox" name="days" value="토">토</label>
+      <label><input type="checkbox" name="days" value="일">일</label>
+    </div>
     <button type="submit">신청</button>
   </form>
   <div id="dungeonSections"></div>
@@ -70,7 +80,7 @@
     updateDifficultyOptions();
 
     function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } }
-    function normalize(v,id) { return { id, nickname: v.nickname !== undefined ? v.nickname : v.name, job: v.job, role: v.role, note: v.note }; }
+    function normalize(v,id) { return { id, nickname: v.nickname !== undefined ? v.nickname : v.name, job: v.job, role: v.role, note: v.note, days: v.days || [] }; }
 
     form.addEventListener('submit', e => {
       e.preventDefault();
@@ -78,7 +88,8 @@
       // 고정된 파티 멤버도 재신청 가능하도록 기존 체크 제거
       if (!nicknameInput.value.trim() || !jobInput.value.trim()) return;
       const ref = db.ref(`parties/${key}`).push();
-      ref.set({ nickname: nicknameInput.value.trim(), job: jobInput.value.trim(), role: roleSelect.value, note: noteInput.value.trim(), id: ref.key });
+      const selectedDays = Array.from(document.querySelectorAll('input[name="days"]:checked')).map(cb => cb.value);
+      ref.set({ nickname: nicknameInput.value.trim(), job: jobInput.value.trim(), role: roleSelect.value, note: noteInput.value.trim(), days: selectedDays, id: ref.key });
       form.reset(); updateDifficultyOptions();
     });
 
@@ -102,9 +113,10 @@
       cnt.textContent = uniqueCount;
       ul.innerHTML = '';
       remaining.forEach((p,i) => {
+        const daysStr = p.days && p.days.length ? ` [${p.days.join(',')}]` : '';
         const noteStr = p.note ? ` - [${p.note}]` : '';
         const li = document.createElement('li');
-        li.innerHTML = `${i+1}. <span class="role-${p.role==='딜러'?'dps':p.role==='힐러'?'heal':'tank'}">${p.nickname} (${p.job}) ${p.role}${noteStr}</span><button class="inline-btn" onclick="removeApplicant('${key}','${p.id}')">❌</button>`;
+        li.innerHTML = `${i+1}. <span class="role-${p.role==='딜러'?'dps':p.role==='힐러'?'heal':'tank'}">${p.nickname} (${p.job}) ${p.role}${daysStr}${noteStr}</span><button class="inline-btn" onclick="removeApplicant('${key}','${p.id}')">❌</button>`;
         ul.appendChild(li);
       });
     }
