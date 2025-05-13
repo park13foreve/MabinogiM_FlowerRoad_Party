@@ -148,16 +148,26 @@
       }
       let html = '';
       pinned.forEach((partyObj, i) => {
+        // calculate common days for pinned group
+        const allDays = partyObj.members.map(m => new Set(m.days));
+        const commonDaysSet = allDays.reduce((a, b) => new Set([...a].filter(x => b.has(x))), allDays[0] || new Set());
+        const commonDaysArr = [...commonDaysSet];
+        const commonDaysDisplay = commonDaysArr.length ? ` [${commonDaysArr.join(',')}]` : '';
         const members = partyObj.members.map(p => `<span class="role-${p.role==='딜러'?'dps':p.role==='힐러'?'heal':'tank'}">${p.nickname} (${p.job})</span>` + (p.note ? ` - [${p.note}]` : '')).join(', ');
         const memo = partyObj.memo || '';
-        html += `<div class="party-block fixed"><strong>🔒 고정 파티 ${i+1}</strong>: ${members}` +
+        html += `<div class="party-block fixed"><strong>🔒 고정 파티 ${i+1}</strong>${commonDaysDisplay}: ${members}` +
                 `<input id="${key}-memo-${i}" type="text" value="${memo}" placeholder="약속시간" class="inline-input"/>` +
                 `<button class="inline-btn" onclick="saveMemo('${key}',${i})">저장</button>` +
                 `<button class="inline-btn" onclick="unpinParty('${key}',${i})">고정해제</button><button class="inline-btn" onclick="deletePinnedParty('${key}',${i})">완전삭제</button></div>`;
       });
       unmatched.forEach((party, i) => {
+        // calculate common days for matched group
+        const allDays = party.map(m => new Set(m.days));
+        const commonDaysSet = allDays.reduce((a, b) => new Set([...a].filter(x => b.has(x))), allDays[0] || new Set());
+        const commonDaysArr = [...commonDaysSet];
+        const commonDaysDisplay = commonDaysArr.length ? ` [${commonDaysArr.join(',')}]` : '';
         const members = party.map(p => `<span class="role-${p.role==='딜러'?'dps':p.role==='힐러'?'heal':'tank'}">${p.nickname} (${p.job})</span>` + (p.note ? ` - [${p.note}]` : '')).join(', ');
-        html += `<div class="party-block"><strong>파티 ${i+1}</strong>: ${members}` +
+        html += `<div class="party-block"><strong>파티 ${i+1}</strong>${commonDaysDisplay}: ${members}` +
                 `<button class="inline-btn" onclick="pinParty('${key}',${i})">고정</button>` +
                 `<button class="inline-btn" onclick="deleteParty('${key}',${i})">❌</button></div>`;
       });
