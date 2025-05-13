@@ -224,16 +224,31 @@
           while (mems.length >= size) {
             const group = [];
             const used = new Set();
+            let groupDays = null;
             for (const p of mems) {
               if (group.length === size) break;
-              if (!used.has(p.nickname)) {
+              if (used.has(p.nickname)) continue;
+              if (group.length === 0) {
+                // 첫 멤버에 대해 요일 집합 초기화
                 group.push(p);
                 used.add(p.nickname);
+                groupDays = new Set(p.days);
+              } else {
+                // 그룹 내 공통 요일 여부 확인
+                const pDaysSet = new Set(p.days);
+                const intersection = new Set([...groupDays].filter(d => pDaysSet.has(d)));
+                if (intersection.size > 0) {
+                  group.push(p);
+                  used.add(p.nickname);
+                  groupDays = intersection;
+                }
               }
             }
+            // 공통 요일이 하나라도 없으면 그룹 매칭 중단
             if (group.length < size) break;
             newMatched.push(group);
             mems = mems.filter(p => !used.has(p.nickname));
+          
           }
           const finalMatched = newMatched.filter(group => {
             const groupIds = new Set(group.map(m => m.id));
