@@ -91,11 +91,11 @@
 
     form.addEventListener('submit', e => {
       e.preventDefault();
+      const selectedDays = Array.from(document.querySelectorAll('input[name="days"]:checked')).map(cb => cb.value);
       if (selectedDays.length === 0) {
         alert('희망 요일을 선택하세요.');
         return;
       }
-      e.preventDefault();
       const key = `${dungeonSelect.value}_${difficultySelect.value}`;
       // 고정된 파티 멤버도 재신청 가능하도록 기존 체크 제거
       if (!nicknameInput.value.trim() || !jobInput.value.trim()) return;
