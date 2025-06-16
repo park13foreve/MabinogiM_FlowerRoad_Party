@@ -81,7 +81,11 @@
       const cfg = dungeonConfigs[dungeonSelect.value];
       difficultySelect.innerHTML = '';
       cfg.difficulties.forEach(d => { const o = document.createElement('option'); o.value = d; o.textContent = d; difficultySelect.appendChild(o); });
-      if (dungeonSelect.value === '어비스') difficultySelect.value = '지옥2';
+      if (dungeonSelect.value === '어비스') {
+        difficultySelect.value = '지옥2';
+      } else if (dungeonSelect.value === '레이드') {
+        difficultySelect.value = '어려움';
+      }
     }
     dungeonSelect.addEventListener('change', updateDifficultyOptions);
     updateDifficultyOptions();
