@@ -81,7 +81,7 @@
       const cfg = dungeonConfigs[dungeonSelect.value];
       difficultySelect.innerHTML = '';
       cfg.difficulties.forEach(d => { const o = document.createElement('option'); o.value = d; o.textContent = d; difficultySelect.appendChild(o); });
-      if (dungeonSelect.value === '어비스') difficultySelect.value = '매우어려움';
+      if (dungeonSelect.value === '어비스') difficultySelect.value = '지옥2';
     }
     dungeonSelect.addEventListener('change', updateDifficultyOptions);
     updateDifficultyOptions();
