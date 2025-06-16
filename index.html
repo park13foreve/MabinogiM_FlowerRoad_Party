@@ -63,6 +63,56 @@
     const firebaseConfig = { apiKey: "AIzaSyColXLlJbXM6x97A4j1ME8QWNKTheAccFM", authDomain: "mabinogim-flowerroad-party.firebaseapp.com", databaseURL: "https://mabinogim-flowerroad-party-default-rtdb.firebaseio.com", projectId: "mabinogim-flowerroad-party", storageBucket: "mabinogim-flowerroad-party.appspot.com", messagingSenderId: "1051963693734", appId: "1:1051963693734:web:c264607ec4ec562147267" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+    // --- Drag & Drop Helpers ---
+    function dragStartApplicant(e, key, id) {
+      e.dataTransfer.setData('application/json', JSON.stringify({type:'applicant', key, id}));
+    }
+    function dragStartMember(e, key, partyIdx, memberIdx) {
+      e.dataTransfer.setData('application/json', JSON.stringify({type:'member', key, partyIdx, memberIdx}));
+    }
+    function allowDrop(e) {
+      e.preventDefault();
+    }
+    
+    function dropOnMember(e, key, partyIdx, memberIdx) {
+      e.preventDefault();
+      const data = JSON.parse(e.dataTransfer.getData('application/json'));
+      if (data.type !== 'applicant') return;
+      const group = matchedParties[key][partyIdx];
+      const applicantId = data.id;
+      db.ref(`parties/${key}/${applicantId}`).once('value').then(snap => {
+        const newMember = {...snap.val(), days: snap.val().days || [], id: snap.key};
+        const oldMember = group[memberIdx];
+        // Check overlap with existing members
+        const others = group.filter((_, idx) => idx !== memberIdx);
+        for (const m of others) {
+          const common = m.days.filter(d => newMember.days.includes(d));
+          if (common.length === 0) {
+            alert("가능한 요일이 없습니다.");
+            return; // abort swap
+          }
+        }
+        // Perform swap
+        group[memberIdx] = newMember;
+        db.ref(`parties/${key}/${oldMember.id}`).set(oldMember);
+        db.ref(`parties/${key}/${newMember.id}`).remove();
+        return db.ref(`matchedParties/${key}`).set(matchedParties[key]);
+      }).catch(console.error);
+    }
+
+    function dropOnApplicantList(e, key) {
+      e.preventDefault();
+      const data = JSON.parse(e.dataTransfer.getData('application/json'));
+      if (data.type !== 'member') return;
+      const {partyIdx, memberIdx} = data;
+      const group = matchedParties[key][partyIdx];
+      const member = group.splice(memberIdx, 1)[0];
+      db.ref(`parties/${key}/${member.id}`).set(member)
+        .then(() => db.ref(`matchedParties/${key}`).set(matchedParties[key]))
+        .catch(console.error);
+    }
+    // ----------------------------
+
 
     const dungeonConfigs = { 어비스: { difficulties: ['입문','어려움','매우어려움','지옥1','지옥2'], partySize: 4 }, 레이드: { difficulties: ['입문','어려움'], partySize: 8 } };
     const matchedParties = {};
@@ -114,7 +164,7 @@
         sec = document.createElement('div'); sec.id = `section-${key}`; sec.className = 'dungeon-section';
         sec.innerHTML = `
           <h2>${key.replace('_',' - ')} (<span id="${key}-count">0</span>명 신청)</h2>
-          <ul id="${key}-list"></ul>
+          <ul id="${key}-list" ondragover="allowDrop(event)" ondrop="dropOnApplicantList(event, \'${key}\')" ></ul>
           <div class="match-buttons"><button onclick="match('${key}', ${dungeonConfigs[key.split('_')[0]].partySize})">파티 자동 매칭</button></div>
           <div id="${key}-matched"></div>
         `;
@@ -131,6 +181,8 @@
         const daysStr = p.days && p.days.length ? ` [${p.days.join(',')}]` : '';
         const noteStr = p.note ? ` - [${p.note}]` : '';
         const li = document.createElement('li');
+        li.draggable = true;
+        li.ondragstart = e => dragStartApplicant(e, key, p.id);
         li.innerHTML = `${i+1}. <span class="role-${p.role==='딜러'?'dps':p.role==='힐러'?'heal':'tank'}">${p.nickname} (${p.job}) ${p.role}${daysStr}${noteStr}</span><button class="inline-btn" onclick="removeApplicant('${key}','${p.id}')">❌</button>`;
         ul.appendChild(li);
       });
@@ -168,18 +220,19 @@
                 `<button class="inline-btn" onclick="saveMemo('${key}',${i})">저장</button>` +
                 `<button class="inline-btn" onclick="unpinParty('${key}',${i})">고정해제</button><button class="inline-btn" onclick="deletePinnedParty('${key}',${i})">완전삭제</button></div>`;
       });
+      
       unmatched.forEach((party, i) => {
-        // calculate common days for matched group
         const allDays = party.map(m => new Set(m.days));
         const commonDaysSet = allDays.reduce((a, b) => new Set([...a].filter(x => b.has(x))), allDays[0] || new Set());
         const commonDaysArr = [...commonDaysSet];
         const commonDaysDisplay = commonDaysArr.length ? ` [${commonDaysArr.join(',')}]` : '';
-        const members = party.map(p => `<span class="role-${p.role==='딜러'?'dps':p.role==='힐러'?'heal':'tank'}">${p.nickname} (${p.job})</span>` + (p.note ? ` - [${p.note}]` : '')).join(', ');
-        html += `<div class="party-block"><strong>파티 ${i+1}</strong>${commonDaysDisplay}: ${members}` +
-                `<button class="inline-btn" onclick="pinParty('${key}',${i})">고정</button>` +
-                `<button class="inline-btn" onclick="deleteParty('${key}',${i})">❌</button></div>`;
+        html += `<div class="party-block">파티 ${i+1}${commonDaysDisplay}: `;
+        party.forEach((m, mi) => {
+          html += `<span class="member-item role-${m.role==='딜러'?'dps':m.role==='힐러'?'heal':'tank'}" draggable="true" ondragstart="dragStartMember(event,'${key}',${i},${mi})" ondragover="allowDrop(event)" ondrop="dropOnMember(event,'${key}',${i},${mi})">${m.nickname} (${m.job})${m.note? ' - ['+m.note+']':''}</span>`;
+        });
+        html += `<button class="inline-btn" onclick="pinParty('${key}',${i})">고정</button><button class="inline-btn" onclick="deleteParty('${key}',${i})">❌</button></div>`;
       });
-      box.innerHTML = html;
+box.innerHTML = html;
     }
     window.renderMatched = renderMatched;
 
