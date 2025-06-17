@@ -101,18 +101,48 @@
       }).catch(console.error);
     }
 
-    function dropOnApplicantList(e, key) {
+    
+    function dropOnApplicantList(e, key, targetApplicantId) {
       e.preventDefault();
       const data = JSON.parse(e.dataTransfer.getData('application/json'));
       if (data.type !== 'member') return;
       const {partyIdx, memberIdx} = data;
       const group = matchedParties[key][partyIdx];
-      const member = group.splice(memberIdx, 1)[0];
-      db.ref(`parties/${key}/${member.id}`).set(member)
-        .then(() => db.ref(`matchedParties/${key}`).set(matchedParties[key]))
-        .catch(console.error);
+      if (targetApplicantId) {
+        // Fetch applicant data
+        db.ref(`parties/${key}/${targetApplicantId}`).once('value')
+          .then(snap => {
+            const newMember = {...snap.val(), days: snap.val().days || [], id: snap.key};
+            // Check if newMember overlaps with all other members
+            const others = group.filter((_, idx) => idx !== memberIdx);
+            const hasOverlap = others.every(m => 
+              m.days.some(day => newMember.days.includes(day))
+            );
+            if (!hasOverlap) {
+              alert("가능한 요일이 없습니다.");
+              return;
+            }
+            // Proceed with swap
+            const oldMember = group[memberIdx];
+            // Remove dragged member and add back to applicants
+            const draggedMember = group.splice(memberIdx, 1, newMember)[0];
+            db.ref(`parties/${key}/${draggedMember.id}`).set(draggedMember);
+            // Remove swapped-in applicant
+            db.ref(`parties/${key}/${newMember.id}`).remove();
+            // Update matched parties
+            db.ref(`matchedParties/${key}`).set(matchedParties[key]);
+          })
+          .catch(console.error);
+      } else {
+        // Only removal case
+        const removed = group.splice(memberIdx, 1)[0];
+        db.ref(`parties/${key}/${removed.id}`).set(removed)
+          .then(() => db.ref(`matchedParties/${key}`).set(matchedParties[key]))
+          .catch(console.error);
+      }
     }
     // ----------------------------
+
 
 
     const dungeonConfigs = { 어비스: { difficulties: ['입문','어려움','매우어려움','지옥1','지옥2'], partySize: 4 }, 레이드: { difficulties: ['입문','어려움'], partySize: 8 } };
@@ -165,7 +195,7 @@
         sec = document.createElement('div'); sec.id = `section-${key}`; sec.className = 'dungeon-section';
         sec.innerHTML = `
           <h2>${key.replace('_',' - ')} (<span id="${key}-count">0</span>명 신청)</h2>
-          <ul id="${key}-list" ondragover="allowDrop(event)" ondrop="dropOnApplicantList(event, \'${key}\')" ></ul>
+          <ul id="${key}-list"></ul>
           <div class="match-buttons"><button onclick="match('${key}', ${dungeonConfigs[key.split('_')[0]].partySize})">파티 자동 매칭</button></div>
           <div id="${key}-matched"></div>
         `;
@@ -183,6 +213,10 @@
         const noteStr = p.note ? ` - [${p.note}]` : '';
         const li = document.createElement('li');
         li.draggable = true;
+            li.ondragover = allowDrop;
+            li.ondrop = e => dropOnApplicantList(e, key, p.id);
+        li.ondragover = allowDrop;
+        li.ondrop = e => dropOnApplicantList(e, key, p.id);
         li.ondragstart = e => dragStartApplicant(e, key, p.id);
         li.innerHTML = `${i+1}. <span class="role-${p.role==='딜러'?'dps':p.role==='힐러'?'heal':'tank'}">${p.nickname} (${p.job}) ${p.role}${daysStr}${noteStr}</span><button class="inline-btn" onclick="removeApplicant('${key}','${p.id}')">❌</button>`;
         ul.appendChild(li);
