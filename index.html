@@ -29,7 +29,8 @@
       align-items: center;
       justify-content: flex-start;
     }
-  </style>
+    .member-item.highlight { outline: 2px dashed #4A90E2; outline-offset: -4px; }
+</style>
 </head>
 <body>
   <h1 style="text-align:center">마비노기 꽃길 길드팟</h1>
@@ -228,7 +229,7 @@
         const commonDaysDisplay = commonDaysArr.length ? ` [${commonDaysArr.join(',')}]` : '';
         html += `<div class="party-block">파티 ${i+1}${commonDaysDisplay}: `;
         party.forEach((m, mi) => {
-          html += `<span class="member-item role-${m.role==='딜러'?'dps':m.role==='힐러'?'heal':'tank'}" draggable="true" ondragstart="dragStartMember(event,'${key}',${i},${mi})" ondragover="allowDrop(event)" ondrop="dropOnMember(event,'${key}',${i},${mi})">${m.nickname} (${m.job})${m.note? ' - ['+m.note+']':''}</span>`;
+          html += `<span class="member-item role-${m.role==='딜러'?'dps':m.role==='힐러'?'heal':'tank'}" draggable="true" ondragenter="this.classList.add('highlight')" ondragleave="this.classList.remove('highlight')" ondragstart="dragStartMember(event,'${key}',${i},${mi})" ondragover="allowDrop(event)" ondrop="dropOnMember(event,'${key}',${i},${mi})">${m.nickname} (${m.job})${m.note? ' - ['+m.note+']':''}</span>`;
         });
         html += `<button class="inline-btn" onclick="pinParty('${key}',${i})">고정</button><button class="inline-btn" onclick="deleteParty('${key}',${i})">❌</button></div>`;
       });
