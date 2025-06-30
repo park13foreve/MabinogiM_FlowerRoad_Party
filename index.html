@@ -148,7 +148,7 @@
     const dungeonConfigs = {
     어비스: { difficulties: ['지옥2'], partySize: 4 },
     글라스기브넨: { difficulties: ['어려움'], partySize: 8 },
-    화이트서큐버스: { difficulties: ['어려움'], partySize: 4 }
+    화이트서큐버스: { difficulties: ['입문'], partySize: 4 }
   };
     const matchedParties = {};
     const pinnedParties = {};
@@ -171,7 +171,7 @@
       } else if (dungeonSelect.value === '글라스기브넨') {
         difficultySelect.value = '어려움';
       } else if (dungeonSelect.value === '화이트서큐버스') {
-        difficultySelect.value = '어려움';
+        difficultySelect.value = '입문';
       }
     }
     dungeonSelect.addEventListener('change', updateDifficultyOptions);
